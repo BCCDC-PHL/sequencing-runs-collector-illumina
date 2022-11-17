@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.orm import Session
 
 from . import models, schemas
@@ -109,12 +111,23 @@ def create_project(db: Session, project: schemas.ProjectCreate):
 
 
 ###### Samples
-def get_samples_by_run_id(db: Session, run_id: str, skip: int = 0, limit: int = 96):
+def get_samples_by_run_id(db: Session, run_id: str, skip: int = 0, limit: int = 100):
     """
     """
     samples = db.query(models.Sample) \
                 .filter(models.SequencingRun.run_id == run_id) \
                 .offset(skip).limit(limit).all()
+
+    return samples
+
+
+def get_samples_by_project_id(db: Session, project_id: str, skip: int = 0, limit: int = 100):
+    """
+    """
+    samples = db.query(models.Sample) \
+                .filter(models.Project.project_id == project_id) \
+                .offset(skip).limit(limit).all()
+    logging.info(samples)
 
     return samples
 
