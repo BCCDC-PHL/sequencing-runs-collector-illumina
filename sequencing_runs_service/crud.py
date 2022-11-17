@@ -33,6 +33,14 @@ def create_instrument(db: Session, instrument: schemas.InstrumentCreate):
 
 
 ###### Sequencing Runs
+def get_sequencing_runs(db: Session):
+    """
+    """
+    sequencing_runs = db.query(models.SequencingRun).all()
+
+    return sequencing_runs
+
+
 def get_sequencing_runs_by_instrument_id(db: Session, instrument_id: str, skip: int = 0, limit: int = 100):
     """
     """
@@ -47,8 +55,8 @@ def get_sequencing_run_by_id(db: Session, run_id: str):
     """
     """
     sequencing_run = db.query(models.SequencingRun) \
-             .filter(models.SequencingRun.run_id == run_id) \
-             .first()
+                       .filter(models.SequencingRun.run_id == run_id) \
+                       .first()
 
     return sequencing_run
 
@@ -100,8 +108,17 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     return db_project
 
 
-
 ###### Samples
+def get_samples_by_run_id(db: Session, run_id: str, skip: int = 0, limit: int = 96):
+    """
+    """
+    samples = db.query(models.Sample) \
+                .filter(models.SequencingRun.run_id == run_id) \
+                .offset(skip).limit(limit).all()
+
+    return samples
+
+
 def create_samples(db: Session, samples: list[schemas.SampleCreate], sequencing_run: schemas.SequencingRun):
     """
     """
