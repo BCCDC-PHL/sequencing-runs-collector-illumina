@@ -14,9 +14,12 @@ def get_instruments(db: Session):
 def get_instrument_by_id(db: Session, instrument_id: str):
     """
     """
-    instrument = db.query(models.Instrument).filter(models.Instrument.instrument_id == instrument_id).first()
+    instrument = db.query(models.Instrument) \
+                   .filter(models.Instrument.instrument_id == instrument_id) \
+                   .first()
     
     return instrument
+
 
 def create_instrument(db: Session, instrument: schemas.InstrumentCreate):
     """
@@ -43,11 +46,11 @@ def get_sequencing_runs_by_instrument_id(db: Session, instrument_id: str, skip: 
 def get_sequencing_run_by_id(db: Session, run_id: str):
     """
     """
-    sequencing_runs = db.query(models.SequencingRun) \
+    sequencing_run = db.query(models.SequencingRun) \
              .filter(models.SequencingRun.run_id == run_id) \
-             .offset(skip).limit(limit).all()
+             .first()
 
-    return sequencing_runs
+    return sequencing_run
 
 
 def create_sequencing_run(db: Session, sequencing_run: schemas.SequencingRunCreate):
@@ -63,3 +66,52 @@ def create_sequencing_run(db: Session, sequencing_run: schemas.SequencingRunCrea
     db.refresh(db_sequencing_run)
 
     return db_sequencing_run
+
+
+###### Projects
+def get_projects(db: Session):
+    """
+    """
+    projects = db.query(models.Project).all()
+
+    return projects
+
+
+def get_project_by_id(db: Session, project_id):
+    """
+    """
+    project = db.query(models.Project) \
+        .filter(models.Project.project_id == project_id) \
+        .first()
+
+    return project
+
+
+def create_project(db: Session, project: schemas.ProjectCreate):
+    """
+    """
+    db_project = models.Project(
+        project_id = project.project_id,
+    )
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+
+    return db_project
+
+
+
+###### Samples
+def create_samples(db: Session, samples: list[schemas.SampleCreate], sequencing_run: schemas.SequencingRun):
+    """
+    """
+    db_samples = []
+    for sample in samples:
+        db_sample = models.Sample(
+            run_id = sequencing_run.id,
+            sample_id = sample.sample_id,
+            project_id = sample.project_id,
+        )
+        db.add(db_sample)
+
+    db.commit()

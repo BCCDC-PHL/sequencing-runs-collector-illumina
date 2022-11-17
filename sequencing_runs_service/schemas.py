@@ -41,9 +41,49 @@ class SequencingRun(SequencingRunBase):
 
 
 class SequencingRunCreate(SequencingRunBase):
-    pass
+    instrument: Instrument
 
 
 class SequencingRunResponse(SequencingRunBase):
     instrument_id: str
+
+
+###### Projects
+class ProjectBase(BaseModel):
+    project_id: str
+
+    class Config:
+        orm_mode = True
+
+
+class Project(ProjectBase):
+    id: int
+
+
+class ProjectCreate(ProjectBase):
+    pass
+
+    
+class ProjectResponse(ProjectBase):
+    pass
+
+
+###### Samples
+class SampleBase(BaseModel):
+    sample_id: str
+    project_id: str
+
+    class Config:
+        orm_mode = True
+
+
+class Sample(SampleBase):
+    id: int
+
+
+class SampleCreate(SampleBase):
+    pass
+
+
+class SampleResponse(SampleBase):
     pass

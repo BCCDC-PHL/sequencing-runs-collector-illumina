@@ -42,7 +42,30 @@ to load a single sequencing run into the database as follows:
 load_sequencing_run.py --db dev.db /path/to/sequencing_run
 ```
 
-Currently only illumina NextSeq runs are supported. MiSeq and Oxford Nanopore GridION
+An optional `project_id_translation` file can be provided to translate from the project IDs in SampleSheet files to the project IDs to store in the database. If one is provided, it should be a two-column .csv file with the headers:
+
+`samplesheet_project_id`
+`sequencing_runs_service_project_id`
+
+For example:
+
+```csv
+samplesheet_project_id,sequencing_runs_service_project_id
+28,antibiotic_resistance
+35,outbreak_investigation
+48,emerging_pathogens
+35,assay_development
+```
+
+Use the project ID translation file as follows:
+
+```
+load_sequencing_run.py --db dev.db \
+  --project-id-translation-table /path/to/project_id_translation_table.csv \
+  /path/to/sequencing_run
+```
+
+Currently only illumina MiSeq and NextSeq runs are supported. Oxford Nanopore GridION
 will be supported in the future.
 
 # Usage
