@@ -206,7 +206,11 @@ def main(args):
             sample_id_key = determine_sample_id_key(samplesheet_sample_record)
             sample_id = samplesheet_sample_record[sample_id_key]
             project_id = samplesheet_sample_record[project_key]
-            db_project_id = db_project_id_by_project_id[project_id]
+            if project_id in db_project_id_by_project_id:
+                db_project_id = db_project_id_by_project_id[project_id]
+            else:
+                db_project_id = None
+
             sample = schemas.SampleCreate(
                 sample_id = sample_id,
                 project_id = db_project_id,
@@ -214,9 +218,7 @@ def main(args):
             samples_to_create.append(sample)
 
         crud.create_samples(db, samples_to_create, sequencing_run)
-        exit(0)
 
-    # 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
@@ -14,6 +16,18 @@ init_debug_logger()
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+allowed_origins = [
+    '*'
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 log = logging.getLogger("logger")
 
@@ -123,7 +137,6 @@ async def get_samples_by_project_id(project_id: str, db: Session = Depends(get_d
 
     for sample in samples:
         sample.project_id = sample.project.project_id
-        log.debug("Updated project ID for sample: " + sample.sample_id)
 
     return samples
 

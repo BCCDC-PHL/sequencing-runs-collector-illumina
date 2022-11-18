@@ -46,8 +46,9 @@ def get_sequencing_runs(db: Session):
 def get_sequencing_runs_by_instrument_id(db: Session, instrument_id: str, skip: int = 0, limit: int = 100):
     """
     """
+    instrument = get_instrument_by_id(db, instrument_id)
     sequencing_runs = db.query(models.SequencingRun) \
-                        .filter(models.Instrument.instrument_id == instrument_id) \
+                        .filter(models.SequencingRun.instrument_id == instrument.id) \
                         .offset(skip).limit(limit).all()
 
     return sequencing_runs

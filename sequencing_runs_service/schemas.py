@@ -71,7 +71,7 @@ class ProjectResponse(ProjectBase):
 ###### Samples
 class SampleBase(BaseModel):
     sample_id: str
-    project_id: str
+    project_id: str | None
 
     class Config:
         orm_mode = True
