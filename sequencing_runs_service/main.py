@@ -103,6 +103,33 @@ async def get_sequencing_runs(db: Session = Depends(get_db)):
     return runs
 
 
+@app.get("/runs/{run_id}", response_model=schemas.SequencingRunResponse)
+async def get_sequencing_run_by_run_id(run_id: str, db: Session = Depends(get_db)):
+    run = crud.get_sequencing_run_by_id(db, run_id)
+
+    if run is None:
+        raise HTTPException(status_code=404, detail="Sequencing run not found: " + run_id)
+
+    return run
+
+
+@app.get("/runs/{run_id}/samples", response_model=list[schemas.SampleResponse])
+async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
+    """
+    """
+    run = crud.get_sequencing_run_by_id(db, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Sequencing run not found: " + run_id)
+
+    samples = crud.get_samples_by_run_id(db, run_id)
+
+    for sample in samples:
+        if sample.project is not None:
+            sample.project_id = sample.project.project_id
+
+    return samples
+
+
 @app.get("/projects", response_model=list[schemas.ProjectResponse])
 async def get_projects(db: Session = Depends(get_db)):
     """
@@ -141,27 +168,3 @@ async def get_samples_by_project_id(project_id: str, db: Session = Depends(get_d
     return samples
 
 
-@app.get("/runs/{run_id}", response_model=schemas.SequencingRunResponse)
-async def get_sequencing_run_by_run_id(run_id: str, db: Session = Depends(get_db)):
-    run = crud.get_sequencing_run_by_id(db, run_id)
-
-    if run is None:
-        raise HTTPException(status_code=404, detail="Sequencing run not found: " + run_id)
-
-    return run
-
-
-@app.get("/runs/{run_id}/samples", response_model=list[schemas.SampleResponse])
-async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
-    """
-    """
-    run = crud.get_sequencing_run_by_id(db, run_id)
-    if run is None:
-        raise HTTPException(status_code=404, detail="Sequencing run not found: " + run_id)
-
-    samples = crud.get_samples_by_run_id(db, run_id)
-
-    for sample in samples:
-        sample.project_id = sample.project.project_id
-
-    return samples

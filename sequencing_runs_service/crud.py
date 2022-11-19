@@ -92,8 +92,8 @@ def get_project_by_id(db: Session, project_id):
     """
     """
     project = db.query(models.Project) \
-        .filter(models.Project.project_id == project_id) \
-        .first()
+                .filter(models.Project.project_id == project_id) \
+                .first()
 
     return project
 
@@ -115,8 +115,11 @@ def create_project(db: Session, project: schemas.ProjectCreate):
 def get_samples_by_run_id(db: Session, run_id: str, skip: int = 0, limit: int = 100):
     """
     """
-    samples = db.query(models.Sample) \
+    run = db.query(models.SequencingRun) \
                 .filter(models.SequencingRun.run_id == run_id) \
+                .first()
+    samples = db.query(models.Sample) \
+                .filter(models.Sample.run_id == run.id) \
                 .offset(skip).limit(limit).all()
 
     return samples
