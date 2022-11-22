@@ -5,9 +5,12 @@ from typing import List, Union
 from pydantic import BaseModel
 
 
+class LinksOnlyResponse(BaseModel):
+    links: dict[str, str]
+
+
 ###### Instruments
 class InstrumentBase(BaseModel):
-    instrument_id: str
     instrument_type: str
     manufacturer_name: str
 
@@ -24,8 +27,14 @@ class InstrumentCreate(InstrumentBase):
 
 
 class InstrumentResponse(InstrumentBase):
-    pass
-    
+    id: str
+    links: dict[str, str]
+
+
+class InstrumentCollectionResponse(BaseModel):
+    links: dict[str, str]
+    data: list[InstrumentResponse]
+
 
 ###### Sequencing Runs
 class SequencingRunBase(BaseModel):

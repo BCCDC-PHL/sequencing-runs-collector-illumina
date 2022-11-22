@@ -1,11 +1,13 @@
 import logging
+import os
 
 from fastapi import Depends, FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from sqlalchemy.orm import Session
 
-from . import crud, models, schemas
+from . import crud, models, schemas, util
 from .database import SessionLocal, engine
 from .config import init_debug_logger
 
@@ -32,38 +34,55 @@ app.add_middleware(
 log = logging.getLogger("logger")
 
 def get_db():
+    """
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-@app.get("/")
+
+@app.get("/", response_model=schemas.LinksOnlyResponse)
 async def root():
     """
     """
-    root = {
-        "links": [
-            {
-                "href": "/instruments",
-                "rel": "instruments",
-            },
-            {
-                "href": "/runs",
-                "rel": "runs",
-            },
-        ]
+    links = {
+        "self": "/",
+        "instruments": "/instruments",
+        "runs": "/runs",
+    }
+    response_body = {
+        "links": links
     }
 
-    return root
+    return response_body
 
-@app.get("/instruments", response_model=list[schemas.InstrumentResponse])
+
+@app.get("/instruments", response_model=schemas.InstrumentCollectionResponse)
 async def get_instruments(db: Session = Depends(get_db)):
     """
     """
     instruments = crud.get_instruments(db)
+    data = []
+    for instrument in instruments:
+        data_dict = util.row2dict(instrument)
+        data_dict['id'] = instrument.instrument_id
+        data_dict['links'] = {
+            'self': os.path.join('/instruments', instrument.instrument_id),
+            'runs': os.path.join('/instruments', instrument.instrument_id, 'runs'),
+        }
+        data.append(data_dict)
 
-    return instruments
+    links = {
+        "self": "/instruments"
+    }
+    response_body = {
+        "data": data,
+        "links": links,
+    }
+
+    return response_body
 
 
 @app.get("/instruments/{instrument_id}", response_model=schemas.InstrumentResponse)
@@ -168,3 +187,18 @@ async def get_samples_by_project_id(project_id: str, db: Session = Depends(get_d
     return samples
 
 
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title="Sequencing Runs Service",
+        version="0.1.0-alpha-0",
+        description="Data on BCCDC-PHL sequencing runs",
+        routes=app.routes,
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi

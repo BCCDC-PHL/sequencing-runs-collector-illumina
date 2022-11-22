@@ -17,6 +17,7 @@ setup(
         "jsonschema==4.17.0",
         "fastapi==0.87.0",
         "uvicorn",
+        "xmltodict==0.13.0",
     ],
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=[],

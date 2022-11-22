@@ -14,7 +14,9 @@ from sqlalchemy.orm import sessionmaker
 import sequencing_runs_service.crud as crud
 import sequencing_runs_service.schemas as schemas
 import sequencing_runs_service.models as models
-import sequencing_runs_service.samplesheet as samplesheet
+import sequencing_runs_service.parsers.samplesheet as samplesheet
+import sequencing_runs_service.parsers.runinfo as runinfo
+import sequencing_runs_service.parsers.primary_analysis_metrics as primary_analysis_metrics
 
 
 def create_db_session(db_url):
@@ -130,6 +132,8 @@ def main(args):
         instrument_type = "miseq"
     elif re.match(nextseq_run_id_regex, run_id):
         instrument_type = "nextseq"
+        # runinfo.parse_runinfo_nextseq_v1(os.path.join(args.run_dir, 'RunInfo.xml'))
+        primary_analysis_metrics.parse_primary_analysis_metrics_nextseq_v1(os.path.join(args.run_dir, 'PrimaryAnalysisMetrics', 'PrimaryAnalysisMetrics.csv'))
     else:
         instrument_type = None
 
