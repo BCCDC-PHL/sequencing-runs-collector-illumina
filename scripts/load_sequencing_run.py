@@ -17,6 +17,7 @@ import sequencing_runs_service.models as models
 import sequencing_runs_service.parsers.samplesheet as samplesheet
 import sequencing_runs_service.parsers.runinfo as runinfo
 import sequencing_runs_service.parsers.primary_analysis_metrics as primary_analysis_metrics
+import sequencing_runs_service.parsers.interop as interop
 
 
 def create_db_session(db_url):
@@ -122,24 +123,23 @@ def main(args):
     miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
     nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
 
+    run_id = os.path.basename(args.run_dir.rstrip('/'))
+
     project_id_lookup = {}
     if args.project_id_translation_table:
-        project_id_lookup = parse_project_id_translation(args.project_id_translation_table)
-        
-    run_id = os.path.basename(args.run_dir.rstrip('/'))
+        project_id_lookup = parse_project_id_translation(args.project_id_translation_table)        
 
     if re.match(miseq_run_id_regex, run_id):
         instrument_type = "miseq"
     elif re.match(nextseq_run_id_regex, run_id):
         instrument_type = "nextseq"
-        # runinfo.parse_runinfo_nextseq_v1(os.path.join(args.run_dir, 'RunInfo.xml'))
-        primary_analysis_metrics.parse_primary_analysis_metrics_nextseq_v1(os.path.join(args.run_dir, 'PrimaryAnalysisMetrics', 'PrimaryAnalysisMetrics.csv'))
     else:
         instrument_type = None
 
     if instrument_type == "miseq" or instrument_type == "nextseq":
         instrument_manufacturer_name = "illumina"
         instrument_id = run_id.split('_')[1]
+        interop_summary = interop.summary_nonindex(os.path.join(args.run_dir))
     else:
         instrument_manufacturer_name = None
         instrument_id = None
@@ -158,6 +158,10 @@ def main(args):
         instrument = instrument,
         run_id = run_id,
         run_date = run_date,
+        cluster_count = interop_summary['cluster_count'],
+        cluster_count_passed_filter = interop_summary['cluster_count_passed_filter'],
+        error_rate = interop_summary['error_rate'],
+        percent_bases_greater_or_equal_to_q30 = interop_summary['percent_bases_greater_or_equal_to_q30'],
     )
 
     sequencing_run = load_sequencing_run(db, sequencing_run)

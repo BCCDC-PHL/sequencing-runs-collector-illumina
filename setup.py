@@ -10,7 +10,7 @@ setup(
     author_email='dan.fornika@bccdc.ca',
     url='https://github.com/BCCDC-PHL/sequencing-runs-service',
     packages=find_packages(exclude=('tests', 'tests.*')),
-    python_requires='>=3.10',
+    python_requires='>=3.10,<3.11',
         install_requires=[
         "sqlalchemy==1.4.44",
         "alembic==1.8.1",
@@ -18,6 +18,7 @@ setup(
         "fastapi==0.87.0",
         "uvicorn",
         "xmltodict==0.13.0",
+        "interop==1.2.0",
     ],
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=[],

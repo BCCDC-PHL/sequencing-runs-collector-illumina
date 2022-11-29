@@ -71,12 +71,36 @@ def create_sequencing_run(db: Session, sequencing_run: schemas.SequencingRunCrea
         instrument_id = sequencing_run.instrument.id,
         run_id = sequencing_run.run_id,
         run_date = sequencing_run.run_date,
+        cluster_count = sequencing_run.cluster_count,
+        cluster_count_passed_filter = sequencing_run.cluster_count_passed_filter,
+        error_rate = sequencing_run.error_rate,
+        percent_bases_greater_or_equal_to_q30 = sequencing_run.percent_bases_greater_or_equal_to_q30,
     )
     db.add(db_sequencing_run)
     db.commit()
     db.refresh(db_sequencing_run)
 
     return db_sequencing_run
+
+
+def delete_sequencing_run(db: Session, run_id: str):
+    """
+    Delete all database records for a sequencing run.
+
+    :param db: Database session
+    :type db: sqlalchemy.orm.Session
+    :param run_id: Sequencing Run ID
+    :type run_id: str
+    :return: All deleted records for sample.
+    :rtype: list[models.SequencingRun]
+    """
+    sequencing_run_record = db.query(Sample).where(Sample.sample_id == sample_id).one_or_none()
+
+    if sequencing_run_record is not None:
+        db.delete(sequencing_run_record)
+        db.commit()
+
+    return sequencing_run_record
 
 
 ###### Projects

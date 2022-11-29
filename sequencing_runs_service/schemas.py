@@ -23,12 +23,18 @@ class Instrument(InstrumentBase):
 
 
 class InstrumentCreate(InstrumentBase):
-    pass
+    instrument_id: str
 
 
 class InstrumentResponse(InstrumentBase):
     id: str
+    type: str
     links: dict[str, str]
+
+
+class InstrumentSingleResponse(BaseModel):
+    links: dict[str, str]
+    data: InstrumentResponse
 
 
 class InstrumentCollectionResponse(BaseModel):
@@ -38,8 +44,11 @@ class InstrumentCollectionResponse(BaseModel):
 
 ###### Sequencing Runs
 class SequencingRunBase(BaseModel):
-    run_id: str
     run_date: datetime.date
+    cluster_count: int|None
+    cluster_count_passed_filter: int|None
+    error_rate: float|None
+    percent_bases_greater_or_equal_to_q30: float|None
 
     class Config:
         orm_mode = True
@@ -54,7 +63,19 @@ class SequencingRunCreate(SequencingRunBase):
 
 
 class SequencingRunResponse(SequencingRunBase):
-    instrument_id: str
+    id: str
+    type: str
+    links: dict[str, str]
+
+
+class SequencingRunSingleResponse(BaseModel):
+    links: dict[str, str]
+    data: SequencingRunResponse
+
+
+class SequencingRunCollectionResponse(BaseModel):
+    links: dict[str, str]
+    data: list[SequencingRunResponse]
 
 
 ###### Projects

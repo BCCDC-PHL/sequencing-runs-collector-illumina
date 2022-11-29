@@ -6,7 +6,7 @@ import re
 def parse_primary_analysis_metrics_nextseq_v1(primary_analysis_metrics_path):
     field_translation = {
         'Average %Q30': 'average_percent_q30',
-        'Total Yield': 'total_yield_gigabasepairs',
+        'Total Yield': 'total_yield_gigabases',
         'Total Reads PF': 'total_reads_passed_filter',
         '% Loading Concentration': 'percent_loading_concentration',
     }

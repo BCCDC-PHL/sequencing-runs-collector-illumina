@@ -134,7 +134,7 @@ def _parse_samplesheet_miseq_v1(samplesheet_path: str):
     samplesheet['reads'] = _parse_reads_section_miseq_v1(samplesheet_path)
     samplesheet['settings'] = _parse_settings_section_miseq_v1(samplesheet_path)
     samplesheet['data'] = _parse_data_section_miseq_v1(samplesheet_path)
-    schema_path = os.path.join(os.path.dirname(__file__), "resources", "samplesheet_miseq_v1.schema.json")
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "resources", "samplesheet_miseq_v1.schema.json")
     schema = None
     with open(schema_path, 'r') as f:
         schema = json.load(f)

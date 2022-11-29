@@ -67,6 +67,7 @@ async def get_instruments(db: Session = Depends(get_db)):
     data = []
     for instrument in instruments:
         data_dict = util.row2dict(instrument)
+        data_dict['type'] = "instrument"
         data_dict['id'] = instrument.instrument_id
         data_dict['links'] = {
             'self': os.path.join('/instruments', instrument.instrument_id),
@@ -77,6 +78,7 @@ async def get_instruments(db: Session = Depends(get_db)):
     links = {
         "self": "/instruments"
     }
+
     response_body = {
         "data": data,
         "links": links,
@@ -85,7 +87,7 @@ async def get_instruments(db: Session = Depends(get_db)):
     return response_body
 
 
-@app.get("/instruments/{instrument_id}", response_model=schemas.InstrumentResponse)
+@app.get("/instruments/{instrument_id}", response_model=schemas.InstrumentSingleResponse)
 async def get_instrument_by_id(instrument_id: str, db: Session = Depends(get_db)):
     """
     """
@@ -93,10 +95,28 @@ async def get_instrument_by_id(instrument_id: str, db: Session = Depends(get_db)
     if instrument is None:
         raise HTTPException(status_code=404, detail="Instrument not found")
 
-    return instrument
+    
+    data_dict = util.row2dict(instrument)
+    data_dict['type'] = 'instrument'
+    data_dict['id'] = instrument.instrument_id
+    data_dict['links'] = {
+        'self': os.path.join('/instruments', instrument_id),
+        'runs': os.path.join('/instruments', instrument_id, 'runs'),
+    }
+
+    links = {
+        "self": os.path.join('/instruments', instrument_id),
+    }
+
+    response_body = {
+        'data': data_dict,
+        'links': links,
+    }
+
+    return response_body
 
 
-@app.get("/instruments/{instrument_id}/runs", response_model=list[schemas.SequencingRunResponse])
+@app.get("/instruments/{instrument_id}/runs", response_model=schemas.SequencingRunCollectionResponse)
 async def get_runs_by_instrument_id(instrument_id: str, db: Session = Depends(get_db)):
     """
     """
@@ -105,10 +125,26 @@ async def get_runs_by_instrument_id(instrument_id: str, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Instrument not found: " + instrument_id)
 
     runs = crud.get_sequencing_runs_by_instrument_id(db, instrument_id)
+    data = []
     for run in runs:
-        run.instrument_id = run.instrument.instrument_id
+        data_dict = util.row2dict(run)
+        data_dict['type'] = 'sequencing_run'
+        data_dict['id'] = run.run_id
+        data_dict['links'] = {
+            'self': os.path.join('/runs', run.run_id)
+        }
+        data.append(data_dict)
 
-    return runs
+    links = {
+        "self": "/instruments/" + instrument_id + "/runs"
+    }
+
+    response_body = {
+        "data": data,
+        "links": links,
+    }
+
+    return response_body
 
 
 @app.get("/runs", response_model=list[schemas.SequencingRunResponse])
