@@ -160,9 +160,9 @@ class SampleResponse(SampleBase):
     id: str
     type: str
     fastq_files: list[FastqFileResponse]
-    links: dict[str, str]
+    links: dict[str, str|None]
 
 
 class SampleCollectionResponse(BaseModel):
-    links: dict[str, str]
+    links: dict[str, str|None]
     data: list[SampleResponse]

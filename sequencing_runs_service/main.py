@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 
 from fastapi import Depends, FastAPI, APIRouter, HTTPException
@@ -171,17 +172,38 @@ async def get_sequencing_run_by_run_id(run_id: str, db: Session = Depends(get_db
 
 
 @app.get("/runs/{run_id}/samples", response_model=schemas.SampleCollectionResponse)
-async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
+async def get_samples_by_run_id(run_id: str, page: int = 1, db: Session = Depends(get_db)):
     """
     """
+    page_size = 96
+    if page == 1:
+        min_index = 0
+    else:
+        min_index = (page - 1) * page_size
+    max_index = min_index + page_size
     run = crud.get_sequencing_run_by_id(db, run_id)
+
     if run is None:
         raise HTTPException(status_code=404, detail="Sequencing run not found: " + run_id)
 
-    samples = crud.get_samples_by_run_id(db, run_id)
+    all_samples_on_run = crud.get_samples_by_run_id(db, run_id)
+    num_samples_on_run = len(all_samples_on_run)
+    log.info("Run ID: " + run_id + " Num samples: " + str(num_samples_on_run))
+    page_samples = all_samples_on_run[min_index:max_index]
+    first_page = 1
+    last_page = math.ceil(num_samples_on_run / page_size)
+    if (page + 1) > last_page:
+        next_page = None
+    else:
+        next_page = page + 1
+    if (page - 1) < first_page:
+        prev_page = None
+    else:
+        prev_page = page - 1
+    
 
     data = []
-    for sample in samples:
+    for sample in page_samples:
         data_dict = util.row2dict(sample)
         data_dict['type'] = 'sample'
         data_dict['id'] = sample.sample_id
@@ -204,8 +226,22 @@ async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
         logging.info(json.dumps(data_dict))
         data.append(data_dict)
 
+    if next_page is None:
+        next_link = None
+    else:
+        next_link = os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(next_page))
+
+    if prev_page is None:
+        prev_link = None
+    else:
+        prev_link = os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(prev_page))
+
     links = {
-        'self': os.path.join('/runs', run_id, 'samples')
+        'self': os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(page)),
+        'first': os.path.join('/runs', run_id, 'samples' + '?' + 'page=1'),
+        'last': os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(last_page)),
+        'next': next_link,
+        'prev': prev_link,
     }
 
     response_body = {
