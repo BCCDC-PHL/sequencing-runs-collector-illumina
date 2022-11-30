@@ -70,6 +70,12 @@ class FastqFile(Base):
     read_type = Column(String)
     filename = Column(String)
     md5_checksum = Column(String)
-    size_megabytes = Column(Float)
+    size_bytes = Column(Integer)
+    total_reads = Column(Integer)
+    total_bases = Column(Integer)
+    mean_read_length = Column(Float)
+    max_read_length = Column(Integer)
+    min_read_length = Column(Integer)
+    num_bases_greater_or_equal_to_q30 = Column(Integer)
 
     sample = relationship("Sample", back_populates="fastq_files")

@@ -3,6 +3,7 @@
 import argparse
 import csv
 import datetime
+import glob
 import json
 import os
 import re
@@ -14,10 +15,12 @@ from sqlalchemy.orm import sessionmaker
 import sequencing_runs_service.crud as crud
 import sequencing_runs_service.schemas as schemas
 import sequencing_runs_service.models as models
+import sequencing_runs_service.util as util
 import sequencing_runs_service.parsers.samplesheet as samplesheet
 import sequencing_runs_service.parsers.runinfo as runinfo
 import sequencing_runs_service.parsers.primary_analysis_metrics as primary_analysis_metrics
 import sequencing_runs_service.parsers.interop as interop
+import sequencing_runs_service.parsers.fastq as fastq
 
 
 def create_db_session(db_url):
@@ -68,7 +71,7 @@ def determine_sample_id_key(samplesheet_sample_record):
         sample_key_id = "sample_name"
 
     return sample_key_id
-        
+
 
 def run_id_to_date(run_id):
     """
@@ -116,23 +119,116 @@ def load_sequencing_run(db, run):
     return sequencing_run
 
 
+def load_projects(db, parsed_samplesheet, samples_section_key, project_key, project_id_lookup):
+    """
+    """
+    project_ids_on_run = set()
+    db_project_id_by_project_id = {}
+    if samples_section_key is not None and project_key is not None:
+        for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
+            if samplesheet_sample_record[project_key] != "":
+                samplesheet_project_id = samplesheet_sample_record[project_key]
+                if samplesheet_project_id in project_id_lookup:
+                    project_id = project_id_lookup[samplesheet_project_id]
+                else:
+                    project_id = samplesheet_project_id
+                project_ids_on_run.add(project_id)
+
+        existing_projects = crud.get_projects(db)
+        existing_project_ids = set([project.project_id for project in existing_projects])
+        for project_id in project_ids_on_run:
+            if project_id in existing_project_ids:
+                project = crud.get_project_by_id(db, project_id)
+            else:
+                project = schemas.ProjectCreate(
+                    project_id = project_id,
+                )
+                project = crud.create_project(db, project)
+
+    return db_project_id_by_project_id
+
+
+def load_samples(db, parsed_samplesheet, samples_section_key, project_key, sequencing_run, db_project_id_by_project_id):
+    """
+    """
+    samples_to_create = []
+    for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
+        sample_id_key = determine_sample_id_key(samplesheet_sample_record)
+        sample_id = samplesheet_sample_record[sample_id_key]
+        project_id = samplesheet_sample_record[project_key]
+        if project_id in db_project_id_by_project_id:
+            db_project_id = db_project_id_by_project_id[project_id]
+        else:
+            db_project_id = None
+
+        sample = schemas.SampleCreate(
+            sample_id = sample_id,
+            project_id = db_project_id,
+        )
+        samples_to_create.append(sample)
+
+    crud.create_samples(db, samples_to_create, sequencing_run)
+
+
+def load_fastq_stats(db, fastq_dir, run_id):
+    """
+    """
+    skip = 0
+    limit = 100
+    current_samples_batch = crud.get_samples_by_run_id(db, run_id, skip, limit)
+    while len(current_samples_batch) > 0:
+        for sample in current_samples_batch:
+            for read_type in ["R1", "R2"]:
+                fastq_file_paths = glob.glob(os.path.join(fastq_dir, sample.sample_id + "_*_" + read_type + "_*.fastq*"))
+                for fastq_path in fastq_file_paths:
+                    filename = os.path.basename(fastq_path)
+                    file_stats = os.stat(fastq_path)
+                    size_bytes = file_stats.st_size
+                    md5_checksum = util.md5(fastq_path)
+                    fastq_stats = fastq.collect_fastq_stats(fastq_path)
+                    # print(json.dumps(fastq_stats, indent=2))
+                    fastq_file = schemas.FastqFileCreate(
+                        sample_id = sample.id,
+                        read_type = read_type,
+                        filename = filename,
+                        md5_checksum = md5_checksum,
+                        size_bytes = size_bytes,
+                        total_reads = fastq_stats['total_reads'],
+                        total_bases = fastq_stats['total_bases'],
+                        mean_read_length = fastq_stats['mean_read_length'],
+                        max_read_length = fastq_stats['max_read_length'],
+                        min_read_length = fastq_stats['min_read_length'],
+                        num_bases_greater_or_equal_to_q30 = fastq_stats['num_bases_greater_or_equal_to_q30'],
+                    )
+                    crud.create_fastq_file(db, fastq_file, sample)
+
+        skip += limit
+        current_samples_batch = crud.get_samples_by_run_id(db, run_id, skip, limit)
+
+    return None
+            
+
+
 def main(args):
     db_url = "sqlite:///" + args.db
     db = create_db_session(db_url)
+
+    project_id_lookup = {}
+    if args.project_id_translation_table:
+        project_id_lookup = parse_project_id_translation(args.project_id_translation_table)
 
     miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
     nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
 
     run_id = os.path.basename(args.run_dir.rstrip('/'))
 
-    project_id_lookup = {}
-    if args.project_id_translation_table:
-        project_id_lookup = parse_project_id_translation(args.project_id_translation_table)        
-
     if re.match(miseq_run_id_regex, run_id):
         instrument_type = "miseq"
+        fastq_dir = os.path.join(args.run_dir, 'Data', 'Intensities', 'BaseCalls')
     elif re.match(nextseq_run_id_regex, run_id):
         instrument_type = "nextseq"
+        # TODO: select the most recent Analysis dir
+        fastq_dir = os.path.join(args.run_dir, 'Analysis', '1', 'Data', 'fastq')
     else:
         instrument_type = None
 
@@ -181,51 +277,15 @@ def main(args):
 
 
     # First load all projects on run that aren't already in the db
-    # TODO: Should probably factor this into a separate method
-    project_ids_on_run = set()
-    db_project_id_by_project_id = {}
-    if samples_section_key is not None and project_key is not None:
-        for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
-            if samplesheet_sample_record[project_key] != "":
-                samplesheet_project_id = samplesheet_sample_record[project_key]
-                if samplesheet_project_id in project_id_lookup:
-                    project_id = project_id_lookup[samplesheet_project_id]
-                else:
-                    project_id = samplesheet_project_id
-                project_ids_on_run.add(project_id)
+    load_projects(db, parsed_samplesheet, samples_section_key, project_key, project_id_lookup)
 
-        existing_projects = crud.get_projects(db)
-        existing_project_ids = set([project.project_id for project in existing_projects])
-        for project_id in project_ids_on_run:
-            if project_id in existing_project_ids:
-                project = crud.get_project_by_id(db, project_id)
-            else:
-                project = schemas.ProjectCreate(
-                    project_id = project_id,
-                )
-                project = crud.create_project(db, project)
+    existing_projects = crud.get_projects(db)
+    db_project_id_by_project_id = {project.project_id: int(project.id) for project in existing_projects}
 
-        existing_projects = crud.get_projects(db)
-        db_project_id_by_project_id = {project.project_id: int(project.id) for project in existing_projects}
+    # Then, now that we can easily look up db project IDs, load the samples:
+    load_samples(db, parsed_samplesheet, samples_section_key, project_key, sequencing_run, db_project_id_by_project_id)
 
-        # Then, now that we can easily look up db project IDs, load the samples:
-        samples_to_create = []
-        for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
-            sample_id_key = determine_sample_id_key(samplesheet_sample_record)
-            sample_id = samplesheet_sample_record[sample_id_key]
-            project_id = samplesheet_sample_record[project_key]
-            if project_id in db_project_id_by_project_id:
-                db_project_id = db_project_id_by_project_id[project_id]
-            else:
-                db_project_id = None
-
-            sample = schemas.SampleCreate(
-                sample_id = sample_id,
-                project_id = db_project_id,
-            )
-            samples_to_create.append(sample)
-
-        crud.create_samples(db, samples_to_create, sequencing_run)
+    load_fastq_stats(db, fastq_dir, run_id)
 
 
 if __name__ == '__main__':

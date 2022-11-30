@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -131,7 +132,8 @@ async def get_runs_by_instrument_id(instrument_id: str, db: Session = Depends(ge
         data_dict['type'] = 'sequencing_run'
         data_dict['id'] = run.run_id
         data_dict['links'] = {
-            'self': os.path.join('/runs', run.run_id)
+            'self': os.path.join('/runs', run.run_id),
+            'samples': os.path.join('/runs', run.run_id, 'samples'),
         }
         data.append(data_dict)
 
@@ -168,7 +170,7 @@ async def get_sequencing_run_by_run_id(run_id: str, db: Session = Depends(get_db
     return run
 
 
-@app.get("/runs/{run_id}/samples", response_model=list[schemas.SampleResponse])
+@app.get("/runs/{run_id}/samples", response_model=schemas.SampleCollectionResponse)
 async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
     """
     """
@@ -178,11 +180,40 @@ async def get_samples_by_run_id(run_id: str, db: Session = Depends(get_db)):
 
     samples = crud.get_samples_by_run_id(db, run_id)
 
+    data = []
     for sample in samples:
+        data_dict = util.row2dict(sample)
+        data_dict['type'] = 'sample'
+        data_dict['id'] = sample.sample_id
         if sample.project is not None:
-            sample.project_id = sample.project.project_id
+            data_dict['project_id'] = sample.project.project_id
+        data_dict['links'] = {
+            'self': os.path.join('/runs', run_id, 'samples', sample.sample_id)
+        }
+        data_dict['fastq_files'] = []
+        fastq_files = crud.get_fastq_files_by_run_id_by_sample_id(db, run_id, sample.sample_id)
+        for fastq_file in fastq_files:
+            fastq_file_dict = util.row2dict(fastq_file)
+            fastq_file_links = {
+                'self': "",
+            }
+            fastq_file_dict['type'] = 'fastq_file'
+            fastq_file_dict['id'] = fastq_file_dict['md5_checksum']
+            fastq_file_dict['links'] = fastq_file_links
+            data_dict['fastq_files'].append(fastq_file_dict)
+        logging.info(json.dumps(data_dict))
+        data.append(data_dict)
 
-    return samples
+    links = {
+        'self': os.path.join('/runs', run_id, 'samples')
+    }
+
+    response_body = {
+        'data': data,
+        'links': links,
+    }    
+
+    return response_body
 
 
 @app.get("/projects", response_model=list[schemas.ProjectResponse])

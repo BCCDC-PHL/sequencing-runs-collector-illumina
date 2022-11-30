@@ -44,6 +44,7 @@ class InstrumentCollectionResponse(BaseModel):
 
 ###### Sequencing Runs
 class SequencingRunBase(BaseModel):
+    run_id: str
     run_date: datetime.date
     cluster_count: int|None
     cluster_count_passed_filter: int|None
@@ -98,9 +99,49 @@ class ProjectResponse(ProjectBase):
     pass
 
 
+###### Fastq Files
+class FastqFileBase(BaseModel):
+    read_type: str
+    filename: str
+    md5_checksum: str|None
+    size_bytes: int|None
+    total_reads: int|None
+    total_bases: int|None
+    mean_read_length: float|None
+    max_read_length: int|None
+    min_read_length: int|None
+    num_bases_greater_or_equal_to_q30: int|None
+
+    class Config:
+        orm_mode = True
+
+
+class FastqFile(FastqFileBase):
+    id: int
+
+
+class FastqFileCreate(FastqFileBase):
+    pass
+
+
+class FastqFileResponse(FastqFileBase):
+    id: str
+    type: str
+    links: dict[str, str]
+
+    
+class FastqFileSingleResponse(BaseModel):
+    links: dict[str, str]
+    data: FastqFileResponse
+
+
+class FastqFileCollectionResponse(BaseModel):
+    links: dict[str, str]
+    data: list[FastqFileResponse]
+
+
 ###### Samples
 class SampleBase(BaseModel):
-    sample_id: str
     project_id: str | None
 
     class Config:
@@ -112,8 +153,16 @@ class Sample(SampleBase):
 
 
 class SampleCreate(SampleBase):
-    pass
+    sample_id: str
 
 
 class SampleResponse(SampleBase):
-    pass
+    id: str
+    type: str
+    fastq_files: list[FastqFileResponse]
+    links: dict[str, str]
+
+
+class SampleCollectionResponse(BaseModel):
+    links: dict[str, str]
+    data: list[SampleResponse]
