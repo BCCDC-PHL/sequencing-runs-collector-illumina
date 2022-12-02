@@ -200,31 +200,46 @@ async def get_samples_by_run_id(run_id: str, page: int = 1, db: Session = Depend
         prev_page = None
     else:
         prev_page = page - 1
-    
+
 
     data = []
     for sample in page_samples:
-        data_dict = util.row2dict(sample)
-        data_dict['type'] = 'sample'
-        data_dict['id'] = sample.sample_id
-        if sample.project is not None:
-            data_dict['project_id'] = sample.project.project_id
-        data_dict['links'] = {
+        sample_attributes = util.row2dict(sample)
+        sample_attributes.pop('id', None)
+        sample_attributes.pop('sample_id', None)
+        sample_attributes.pop('project_id', None)
+        sample_attributes.pop('run_id', None)
+
+        sample_data = {}
+        sample_data['type'] = 'sample'
+        sample_data['id'] = sample.sample_id
+        sample_data['attributes'] = sample_attributes
+        sample_data['attributes']['project_id'] = sample.project.project_id
+
+        sample_links = {
             'self': os.path.join('/runs', run_id, 'samples', sample.sample_id)
         }
-        data_dict['fastq_files'] = []
+        sample_data['links'] = sample_links
+
+        sample_relationships = {}
+        sample_fastq_files = {}
+        sample_fastq_files['data'] = []
+        sample_fastq_files['links'] = {
+            "self": os.path.join('/runs', run_id, 'samples', sample_data['id'], 'relationships', 'fastq_files'),
+            "related": os.path.join('/runs', run_id, 'samples', sample_data['id'], 'fastq_files'),
+        }
         fastq_files = crud.get_fastq_files_by_run_id_by_sample_id(db, run_id, sample.sample_id)
         for fastq_file in fastq_files:
-            fastq_file_dict = util.row2dict(fastq_file)
-            fastq_file_links = {
-                'self': "",
-            }
-            fastq_file_dict['type'] = 'fastq_file'
-            fastq_file_dict['id'] = fastq_file_dict['md5_checksum']
-            fastq_file_dict['links'] = fastq_file_links
-            data_dict['fastq_files'].append(fastq_file_dict)
-        logging.info(json.dumps(data_dict))
-        data.append(data_dict)
+            fastq_file_attributes = util.row2dict(fastq_file)
+            fastq_file_data = {}
+            fastq_file_data['type'] = 'fastq_file'
+            fastq_file_data['id'] = '-'.join([run_id, sample_data['id'], fastq_file_attributes['read_type']])
+            sample_fastq_files['data'].append(fastq_file_data)
+
+        sample_relationships['fastq_files'] = sample_fastq_files
+        sample_data['relationships'] = sample_relationships
+            
+        data.append(sample_data)
 
     if next_page is None:
         next_link = None

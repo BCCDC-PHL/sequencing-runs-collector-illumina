@@ -142,7 +142,6 @@ class FastqFileCollectionResponse(BaseModel):
 
 ###### Samples
 class SampleBase(BaseModel):
-    project_id: str | None
 
     class Config:
         orm_mode = True
@@ -159,7 +158,8 @@ class SampleCreate(SampleBase):
 class SampleResponse(SampleBase):
     id: str
     type: str
-    fastq_files: list[FastqFileResponse]
+    attributes: dict[str, object]
+    relationships: dict[str, object]
     links: dict[str, str|None]
 
 
