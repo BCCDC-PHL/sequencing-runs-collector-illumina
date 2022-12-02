@@ -150,15 +150,72 @@ async def get_runs_by_instrument_id(instrument_id: str, db: Session = Depends(ge
     return response_body
 
 
-@app.get("/runs", response_model=list[schemas.SequencingRunResponse])
-async def get_sequencing_runs(db: Session = Depends(get_db)):
+@app.get("/runs", response_model=schemas.SequencingRunCollectionResponse)
+async def get_sequencing_runs(page: int = 1, db: Session = Depends(get_db)):
     """
     """
-    runs = crud.get_sequencing_runs(db)
-    for run in runs:
-        run.instrument_id = run.instrument.instrument_id
+    page_size = 100
+    if page == 1:
+        min_index = 0
+    else:
+        min_index = (page - 1) * page_size
+    max_index = min_index + page_size
 
-    return runs
+    response_body = {}
+    all_runs = crud.get_sequencing_runs(db)
+    num_runs = len(all_runs)
+    page_runs = all_runs[min_index:max_index]
+
+    data = []
+    for run in page_runs:
+        run_attributes = util.row2dict(run)
+        run_attributes.pop('id', None)
+        run_attributes.pop('run_id', None)
+        run_attributes.pop('instrument_id', None)
+        run_data = {}
+        run_data['id'] = run.run_id
+        run_data['type'] = 'sequencing_run'
+        run_data['attributes'] = run_attributes
+        run_links = {}
+        run_links['self'] = os.path.join('/runs', run_data['id'])
+        run_data['links'] = run_links
+        data.append(run_data)
+    
+    first_page = 1
+    last_page = math.ceil(num_runs / page_size)
+    if (page + 1) > last_page:
+        next_page = None
+    else:
+        next_page = page + 1
+    if (page - 1) < first_page:
+        prev_page = None
+    else:
+        prev_page = page - 1
+
+    if next_page is None:
+        next_link = None
+    else:
+        next_link = os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(next_page))
+
+    if prev_page is None:
+        prev_link = None
+    else:
+        prev_link = os.path.join('/runs', run_id, 'samples' + '?' + 'page=' + str(prev_page))
+
+    links = {
+        'self': os.path.join('/runs' + '?' + 'page=' + str(page)),
+        'first': os.path.join('/runs' + '?' + 'page=1'),
+        'last': os.path.join('/runs' + '?' + 'page=' + str(last_page)),
+        'next': next_link,
+        'prev': prev_link,
+    }
+
+    response_body = {
+        'data': data,
+        'links': links,
+    }
+
+    return response_body
 
 
 @app.get("/runs/{run_id}", response_model=schemas.SequencingRunResponse)
@@ -188,7 +245,6 @@ async def get_samples_by_run_id(run_id: str, page: int = 1, db: Session = Depend
 
     all_samples_on_run = crud.get_samples_by_run_id(db, run_id)
     num_samples_on_run = len(all_samples_on_run)
-    log.info("Run ID: " + run_id + " Num samples: " + str(num_samples_on_run))
     page_samples = all_samples_on_run[min_index:max_index]
     first_page = 1
     last_page = math.ceil(num_samples_on_run / page_size)

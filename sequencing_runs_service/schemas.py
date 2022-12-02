@@ -63,10 +63,11 @@ class SequencingRunCreate(SequencingRunBase):
     instrument: Instrument
 
 
-class SequencingRunResponse(SequencingRunBase):
+class SequencingRunResponse(BaseModel):
     id: str
     type: str
-    links: dict[str, str]
+    attributes: dict[str, object]
+    links: dict[str, str|None]
 
 
 class SequencingRunSingleResponse(BaseModel):
@@ -75,7 +76,7 @@ class SequencingRunSingleResponse(BaseModel):
 
 
 class SequencingRunCollectionResponse(BaseModel):
-    links: dict[str, str]
+    links: dict[str, str|None]
     data: list[SequencingRunResponse]
 
 
