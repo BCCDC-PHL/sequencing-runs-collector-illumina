@@ -3,31 +3,39 @@ import logging
 from sqlalchemy import select, delete, and_
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from sequencing_runs_db.models import *
 
 ###### Instruments
-def get_instruments(db: Session):
+def get_instruments_illumina(db: Session):
     """
     """
-    instruments = db.query(models.Instrument).all()
+    db_instruments = db.query(InstrumentIllumina).all()
 
-    return instruments
+    return db_instruments
 
 
-def get_instrument_by_id(db: Session, instrument_id: str):
+def get_instruments_nanopore(db: Session):
     """
     """
-    instrument = db.query(models.Instrument) \
-                   .filter(models.Instrument.instrument_id == instrument_id) \
-                   .first()
+    db_instruments = db.query(InstrumentNanopore).all()
+
+    return db_instruments
+
+
+def get_instrument_illumina_by_id(db: Session, instrument_id: str):
+    """
+    """
+    db_instrument = db.query(InstrumentIllumina).filter(
+        InstrumentIllumina.instrument_id == instrument_id
+    ).first()
     
-    return instrument
+    return db_instrument
 
 
-def create_instrument(db: Session, instrument: schemas.InstrumentCreate):
+def create_instrument_illumina(db: Session, instrument):
     """
     """
-    db_instrument = models.Instrument(**instrument.dict())
+    db_instrument = InstrumentIllumina(**instrument)
     db.add(db_instrument)
     db.commit()
     db.refresh(db_instrument)
@@ -36,55 +44,66 @@ def create_instrument(db: Session, instrument: schemas.InstrumentCreate):
 
 
 ###### Sequencing Runs
-def get_sequencing_runs(db: Session):
+def get_sequencing_runs_illumina(db: Session):
     """
     """
-    sequencing_runs = db.query(models.SequencingRun).all()
+    db_sequencing_runs = db.query(SequencingRunIllumina).all()
 
-    return sequencing_runs
+    return db_sequencing_runs
 
 
-def get_sequencing_runs_by_instrument_id(db: Session, instrument_id: str, skip: int = 0, limit: int = 100):
+def get_sequencing_runs_illumina_by_instrument_id(db: Session, instrument_id: str, skip: int = 0, limit: int = 100):
     """
     """
-    instrument = get_instrument_by_id(db, instrument_id)
-    sequencing_runs = db.query(models.SequencingRun) \
-                        .filter(models.SequencingRun.instrument_id == instrument.id) \
-                        .offset(skip).limit(limit).all()
+    db_sequencing_runs = None
 
-    return sequencing_runs
+    instrument = get_instrument_illumina_by_id(db, instrument_id)
+    
+    if instrument is not None:
+        sequencing_runs = db.query(SequencingRunIllumina).filter(
+            SequencingRunIllumina.instrument_id == instrument.id
+        ).offset(skip).limit(limit).all()
+
+    return db_sequencing_runs
 
 
-def get_sequencing_run_by_id(db: Session, run_id: str):
+def get_sequencing_run_illumina_by_id(db: Session, run_id: str):
     """
     """
-    sequencing_run = db.query(models.SequencingRun) \
-                       .filter(models.SequencingRun.run_id == run_id) \
-                       .first()
-
-    return sequencing_run
-
-
-def create_sequencing_run(db: Session, sequencing_run: schemas.SequencingRunCreate):
-    """
-    """
-    db_sequencing_run = models.SequencingRun(
-        instrument_id = sequencing_run.instrument.id,
-        run_id = sequencing_run.run_id,
-        run_date = sequencing_run.run_date,
-        cluster_count = sequencing_run.cluster_count,
-        cluster_count_passed_filter = sequencing_run.cluster_count_passed_filter,
-        error_rate = sequencing_run.error_rate,
-        percent_bases_greater_or_equal_to_q30 = sequencing_run.percent_bases_greater_or_equal_to_q30,
-    )
-    db.add(db_sequencing_run)
-    db.commit()
-    db.refresh(db_sequencing_run)
+    db_sequencing_run = db.query(SequencingRunIllumina).filter(
+        SequencingRunIllumina.sequencing_run_id == run_id
+    ).first()
 
     return db_sequencing_run
 
 
-def delete_sequencing_run(db: Session, run_id: str):
+def create_sequencing_run_illumina(db: Session, sequencing_run):
+    """
+    """
+    db_sequencing_run = None
+
+    existing_instrument = db.query(InstrumentIllumina).filter(
+        InstrumentIllumina.instrument_id == sequencing_run['instrument_id']
+    ).first()
+
+    if existing_instrument is not None:
+        db_sequencing_run = SequencingRunIllumina(
+            instrument_id = existing_instrument.id,
+            run_id = sequencing_run['sequencing_run_id'],
+            run_date = sequencing_run['run_date'],
+            cluster_count = sequencing_run['cluster_count'],
+            cluster_count_passed_filter = sequencing_run['cluster_count_passed_filter'],
+            error_rate = sequencing_run['error_rate'],
+            q30_percent = sequencing_run.q30_percent,
+        )
+        db.add(db_sequencing_run)
+        db.commit()
+        db.refresh(db_sequencing_run)
+
+    return db_sequencing_run
+
+
+def delete_sequencing_run_illumina(db: Session, run_id: str):
     """
     Delete all database records for a sequencing run.
 
@@ -93,22 +112,24 @@ def delete_sequencing_run(db: Session, run_id: str):
     :param run_id: Sequencing Run ID
     :type run_id: str
     :return: All deleted records for sample.
-    :rtype: list[models.SequencingRun]
+    :rtype: list[SequencingRunIllumina]
     """
-    sequencing_run_record = db.query(Sample).where(Sample.sample_id == sample_id).one_or_none()
+    db_sequencing_run = db.query(SequencingRunIllumina).filter(
+        SequencingRunIllumina.sequencing_run_id == run_id
+    ).one_or_none()
 
-    if sequencing_run_record is not None:
-        db.delete(sequencing_run_record)
+    if db_sequencing_run is not None:
+        db.delete(db_sequencing_run)
         db.commit()
 
-    return sequencing_run_record
+    return db_sequencing_run
 
 
 ###### Projects
 def get_projects(db: Session):
     """
     """
-    projects = db.query(models.Project).all()
+    projects = db.query(Project).all()
 
     return projects
 
@@ -116,17 +137,17 @@ def get_projects(db: Session):
 def get_project_by_id(db: Session, project_id):
     """
     """
-    project = db.query(models.Project) \
-                .filter(models.Project.project_id == project_id) \
-                .first()
+    project = db.query(Project).filter(
+        Project.project_id == project_id
+    ).first()
 
     return project
 
 
-def create_project(db: Session, project: schemas.ProjectCreate):
+def create_project(db: Session, project):
     """
     """
-    db_project = models.Project(
+    db_project = Project(
         project_id = project.project_id,
     )
     db.add(db_project)
@@ -136,34 +157,37 @@ def create_project(db: Session, project: schemas.ProjectCreate):
     return db_project
 
 
-###### Samples
-def get_samples_by_run_id(db: Session, run_id: str, skip: int = 0, limit: int = 100):
+###### Libraries
+def get_libraries_by_sequencing_run_illumina_id(db: Session, run_id: str, skip: int = 0, limit: int = 100):
     """
     """
-    run = db.query(models.SequencingRun) \
-                .filter(models.SequencingRun.run_id == run_id) \
-                .first()
-    samples = db.query(models.Sample) \
-                .filter(models.Sample.run_id == run.id) \
-                .offset(skip).limit(limit).all()
+    db_libraries = None
 
-    return samples
+    existing_sequencing_run = db.query(SequencingRunIllumina) \
+                                .filter(SequencingRunIllumina.run_id == run_id) \
+                                .first()
+    
+    if existing_sequencing_run is not None:
+        db_libraries = db.query(SequencedLibraryIllumina).filter(
+            SequencedLibraryIllumina.sequencing_run_id == existing_sequencing_run.id
+        ).offset(skip).limit(limit).all()
+
+    return db_libraries
 
 
-def get_samples_by_project_id(db: Session, project_id: str, skip: int = 0, limit: int = 100):
+def get_illumina_libraries_by_project_id(db: Session, project_id: str, skip: int = 0, limit: int = 100):
     """
     """
-    samples = db.query(models.Sample) \
-                .filter(models.Project.project_id == project_id) \
-                .offset(skip).limit(limit).all()
-    logging.info(samples)
+    db_libraries = db.query(SequencedLibraryIllumina).filter(
+        Project.project_id == project_id
+    ).offset(skip).limit(limit).all()
 
-    return samples
+    return db_libraries
 
 
-def create_samples(db: Session, samples: list[schemas.SampleCreate], sequencing_run: schemas.SequencingRun):
+def create_libraries_illumina(db: Session, libraries: list[dict], sequencing_run: dict):
     """
-    Create a set of sample records in the database.
+    Create a set of sequenced illumina library records in the database.
 
     :param db: Database session.
     :type db: sqlalchemy.orm.Session
@@ -174,20 +198,45 @@ def create_samples(db: Session, samples: list[schemas.SampleCreate], sequencing_
     :return: None
     :rtype: NoneType
     """
-    db_samples = []
-    for sample in samples:
-        db_sample = models.Sample(
-            run_id = sequencing_run.id,
-            sample_id = sample.sample_id,
-            project_id = sample.project_id,
-        )
-        db.add(db_sample)
+    db_libraries = []
+    existing_instrument = db.query(InstrumentIllumina).filter(
+        InstrumentIllumina.instrument_id == sequencing_run['instrument_id']
+    ).first()
+
+    existing_sequencing_run = db.query(SequencingRunIllumina).filter(
+        SequencingRunIllumina.sequencing_run_id == sequencing_run['sequencing_run_id']
+    ).first()
+
+    
+    
+    if existing_instrument is not None and existing_sequencing_run is not None:
+        for library in libraries:
+            existing_project = db.query(Project).filter(
+                Project.project_id == library['library_id']
+            ).first()
+
+            db_library = SequencedLibraryIllumina(
+                library_id = library['library_id'],
+                sequencing_run_id = existing_sequencing_run.id,
+                samplesheet_project_id = library['samplesheet_project_id'],
+                num_reads = library['num_reads'],
+                num_bases = library['num_bases'],
+                q30_rate = library['q30_rate'],
+            )
+            if existing_project is not None:
+                db_library.project_id = existing_project.id
+            else:
+                db_library.project_id = None
+
+            db.add(db_library)
+            db_libraries.append(db_library)
 
     db.commit()
 
+    return db_libraries
 
 ###### Fastq Files
-def create_fastq_file(db: Session, fastq_file: schemas.FastqFileCreate, sample: schemas.Sample):
+def create_fastq_file(db: Session, fastq_file):
     """
     Create a fastq file record in the database.
 
@@ -200,44 +249,20 @@ def create_fastq_file(db: Session, fastq_file: schemas.FastqFileCreate, sample: 
     :return: created Fastq file record.
     :rtype: models.FastqFile
     """
-    db_fastq_file = models.FastqFile(
-        sample_id = sample.id,
-        read_type = fastq_file.read_type,
-        filename = fastq_file.filename,
-        md5_checksum = fastq_file.md5_checksum,
-        size_bytes = fastq_file.size_bytes,
-        total_reads = fastq_file.total_reads,
-        total_bases = fastq_file.total_bases,
-        mean_read_length = fastq_file.mean_read_length,
-        max_read_length = fastq_file.max_read_length,
-        min_read_length = fastq_file.min_read_length,
-        num_bases_greater_or_equal_to_q30 = fastq_file.num_bases_greater_or_equal_to_q30,
+    db_fastq_file = FastqFile(
+        read_type = fastq_file['read_type'],
+        filename = fastq_file['filename'],
+        md5_checksum = fastq_file['md5_checksum'],
+        size_bytes = fastq_file['size_bytes'],
+        total_reads = fastq_file['total_reads'],
+        total_bases = fastq_file['total_bases'],
+        mean_read_length = fastq_file['mean_read_length'],
+        max_read_length = fastq_file['max_read_length'],
+        min_read_length = fastq_file['min_read_length'],
+        q30_rate = fastq_file['q30_rate'],
     )
     db.add(db_fastq_file)
     db.commit()
     db.refresh(db_fastq_file)
 
     return db_fastq_file
-
-
-def get_fastq_files_by_run_id_by_sample_id(db: Session, run_id: str, sample_id: str):
-    """
-    """
-    fastq_files = []
-    run = db.query(models.SequencingRun) \
-            .filter(models.SequencingRun.run_id == run_id) \
-            .one_or_none()
-
-    if run is not None:
-        samples = db.query(models.Sample) \
-                    .filter(models.Sample.run_id == run.id) \
-                    .filter(models.Sample.sample_id == sample_id) \
-                    .all()
-
-        for sample in samples:
-            fastq_files_for_sample = db.query(models.FastqFile) \
-                                       .filter(models.FastqFile.sample_id == sample.id)
-            fastq_files += fastq_files_for_sample
-
-
-    return fastq_files

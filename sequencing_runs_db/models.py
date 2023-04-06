@@ -1,4 +1,11 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Float, String, Date
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Float
+from sqlalchemy import String
+from sqlalchemy import Date
+from sqlalchemy import  DateTime
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -6,25 +13,25 @@ Base = declarative_base()
 class InstrumentIllumina(Base):
     __tablename__ = "instrument_illumina"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     instrument_id = Column(String, index=True, unique=True)
     instrument_type = Column(String)
-    manufacturer_name = Column(String)
     status = Column(String)
-    current_sequencing_run = Column(String)
-
+    timestamp_status_updated = Column(DateTime)
+    current_sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_illumina.id"))
+    
     sequencing_runs = relationship("SequencingRunIllumina", back_populates="instrument")
 
 
 class InstrumentNanopore(Base):
     __tablename__ = "instrument_nanopore"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     instrument_id = Column(String, index=True, unique=True)
     instrument_type = Column(String)
-    manufacturer_name = Column(String)
     status = Column(String)
-    current_sequencing_run = Column(String)
+    timestamp_status_updated = Column(String)
+    current_sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_nanopore.id"))
 
     sequencing_runs = relationship("SequencingRunNanopore", back_populates="instrument")
 
@@ -32,7 +39,7 @@ class InstrumentNanopore(Base):
 class SequencingRunIllumina(Base):
     __tablename__ = "sequencing_run_illumina"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     run_id = Column(String, index=True, unique=True)
     instrument_id = Column(Integer, ForeignKey("instrument_illumina.id"))
     run_date = Column(Date)
@@ -54,8 +61,8 @@ class SequencingRunIllumina(Base):
 class SequencingRunNanopore(Base):
     __tablename__ = "sequencing_run_nanopore"
 
-    id = Column(Integer, primary_key=True, index=True)
-    run_id = Column(String, index=True, unique=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    run_id = Column(String, index=True, autoincrement=True, unique=True)
     instrument_id = Column(Integer, ForeignKey("instrument_nanopore.id"))
     run_date = Column(Date)
     num_reads = Column(Integer)
@@ -69,17 +76,28 @@ class SequencingRunNanopore(Base):
 class Project(Base):
     __tablename__ = "project"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     project_id = Column(String, index=True, unique=True)
 
     sequenced_illumina_libraries = relationship("SequencedLibraryIllumina", back_populates="project")
     sequenced_nanopore_libraries = relationship("SequencedLibraryNanopore", back_populates="project")
+    aliases = relationship("ProjectAlias", back_populates="project")
+
+
+class ProjectAlias(Base):
+    __tablename__ = "project_alias"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    project_id = Column(Integer, ForeignKey("project.id"))
+    alias = Column(String)
+
+    project = relationship("Project", back_populates="aliases")
 
 
 class SequencedLibraryIllumina(Base):
     __tablename__ = "sequenced_library_illumina"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     library_id = Column(String, index=True)
     sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_illumina.id"))
     project_id = Column(Integer, ForeignKey("project.id"))
