@@ -7,7 +7,7 @@ import re
 
 import jsonschema
 
-import sequencing_runs_service.util as util
+import sequencing_runs_db.util as util
 
 
 def _parse_header_section_miseq_v1(samplesheet_path: str):

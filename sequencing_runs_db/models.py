@@ -14,11 +14,11 @@ class InstrumentIllumina(Base):
     __tablename__ = "instrument_illumina"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    instrument_id = Column(String, index=True, unique=True)
+    instrument_id = Column(String, unique=True)
     instrument_type = Column(String)
+    instrument_model = Column(String)
     status = Column(String)
     timestamp_status_updated = Column(DateTime)
-    current_sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_illumina.id"))
     
     sequencing_runs = relationship("SequencingRunIllumina", back_populates="instrument")
 
@@ -27,11 +27,11 @@ class InstrumentNanopore(Base):
     __tablename__ = "instrument_nanopore"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    instrument_id = Column(String, index=True, unique=True)
+    instrument_id = Column(String, unique=True)
     instrument_type = Column(String)
+    instrument_model = Column(String)
     status = Column(String)
     timestamp_status_updated = Column(String)
-    current_sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_nanopore.id"))
 
     sequencing_runs = relationship("SequencingRunNanopore", back_populates="instrument")
 
@@ -40,15 +40,16 @@ class SequencingRunIllumina(Base):
     __tablename__ = "sequencing_run_illumina"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    run_id = Column(String, index=True, unique=True)
+    sequencing_run_id = Column(String, index=True, unique=True)
     instrument_id = Column(Integer, ForeignKey("instrument_illumina.id"))
+    flowcell_id = Column(String)
     run_date = Column(Date)
     cluster_count = Column(Integer)
     cluster_count_passed_filter = Column(Integer)
     error_rate = Column(Float)
     first_cycle_intensity = Column(Float)
     percent_aligned = Column(Float)
-    percent_bases_greater_or_equal_to_q30 = Column(Float)
+    q30_percent = Column(Float)
     projected_yield_gigabases = Column(Float)
     num_reads = Column(Integer)
     num_reads_passed_filter = Column(Integer)
@@ -62,15 +63,54 @@ class SequencingRunNanopore(Base):
     __tablename__ = "sequencing_run_nanopore"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    run_id = Column(String, index=True, autoincrement=True, unique=True)
+    sequencing_run_id = Column(String, index=True, unique=True)
     instrument_id = Column(Integer, ForeignKey("instrument_nanopore.id"))
+    flowcell_id = Column(String)
+    flowcell_product_code = Column(String)
     run_date = Column(Date)
-    num_reads = Column(Integer)
+    protocol_id = Column(String)
+    protocol_run_id = Column(String)
+    acquisition_run_id = Column(String)
+    timestamp_acquisition_started = Column(DateTime)
+    timestamp_acquisition_stopped = Column(DateTime)
+    timestamp_processing_stopped = Column(DateTime)
+    num_reads_total = Column(Integer)
     num_reads_passed_filter = Column(Integer)
     yield_gigabases = Column(Float)
 
     instrument = relationship("InstrumentNanopore", back_populates="sequencing_runs")
     libraries = relationship("SequencedLibraryNanopore", back_populates="sequencing_run")
+
+
+class AcquisitionRunNanopore(Base):
+    __tablename__ = "acquisition_run_nanopore"
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_nanopore.id"))
+    acquisition_run_id = Column(String, index=True, unique=True)
+    timestamp_acquisition_started = Column(DateTime)
+    timestamp_acquisition_stopped = Column(DateTime)
+    acquisition_duration_seconds = Column(Integer)
+    num_reads_total = Column(Integer)
+    num_reads_passed_filter = Column(Integer)
+    num_reads_skipped = Column(Integer)
+    num_bases_total = Column(Integer)
+    num_bases_passed_filter = Column(Integer)
+    basecalling_config = Column(String)
+
+
+class AcquisitionSnapshotNanopore(Base):
+    __tablename__ = "acquisition_snapshot_nanopore"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    acquisition_run_id = Column(Integer, ForeignKey("acquisition_run_nanopore.id"))
+    acquisition_elapsed_seconds = Column(Integer)
+    num_reads_total = Column(Integer)
+    fraction_basecalled = Column(Float)
+    fraction_skipped = Column(Float)
+    num_reads_passed_filter = Column(Integer)
+    num_reads_skipped = Column(Integer)
+    num_bases_total = Column(Integer)
+    num_bases_passed_filter = Column(Integer)
 
 
 class Project(Base):
@@ -106,9 +146,8 @@ class SequencedLibraryIllumina(Base):
     num_bases = Column(Integer)
     q30_rate = Column(Float)
 
-    sequencing_run = relationship("SequencingRunIllumina", back_populates="samples")
-    project = relationship("Project", back_populates="samples")
-    fastq_files = relationship("FastqFile", back_populates="sample")
+    sequencing_run = relationship("SequencingRunIllumina", back_populates="libraries")
+    project = relationship("Project", back_populates="sequenced_illumina_libraries")
 
 
 class SequencedLibraryNanopore(Base):
@@ -122,9 +161,8 @@ class SequencedLibraryNanopore(Base):
     num_bases = Column(Integer)
     read_n50 = Column(Float)
 
-    sequencing_run = relationship("SequencingRunIllumina", back_populates="samples")
-    project = relationship("Project", back_populates="samples")
-    fastq_files = relationship("FastqFile", back_populates="sample")
+    sequencing_run = relationship("SequencingRunNanopore", back_populates="libraries")
+    project = relationship("Project", back_populates="sequenced_nanopore_libraries")
 
 
 class FastqFile(Base):

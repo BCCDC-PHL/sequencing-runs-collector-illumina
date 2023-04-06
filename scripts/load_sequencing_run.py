@@ -12,15 +12,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-import sequencing_runs_service.crud as crud
-import sequencing_runs_service.schemas as schemas
-import sequencing_runs_service.models as models
-import sequencing_runs_service.util as util
-import sequencing_runs_service.parsers.samplesheet as samplesheet
-import sequencing_runs_service.parsers.runinfo as runinfo
-import sequencing_runs_service.parsers.primary_analysis_metrics as primary_analysis_metrics
-import sequencing_runs_service.parsers.interop as interop
-import sequencing_runs_service.parsers.fastq as fastq
+import sequencing_runs_db.crud as crud
+import sequencing_runs_db.util as util
+import sequencing_runs_db.parsers.samplesheet as samplesheet
+import sequencing_runs_db.parsers.runinfo as runinfo
+import sequencing_runs_db.parsers.primary_analysis_metrics as primary_analysis_metrics
+import sequencing_runs_db.parsers.interop as interop
+import sequencing_runs_db.parsers.nanopore as nanopore
+import sequencing_runs_db.parsers.fastq as fastq
 
 
 def create_db_session(db_url):
@@ -76,6 +75,7 @@ def determine_sample_id_key(samplesheet_sample_record):
 def run_id_to_date(run_id):
     """
     """
+    run_date = None
     run_id_date_component = run_id.split('_')[0]
     if len(run_id_date_component) == 6:
         six_digit_date = run_id.split('_')[0]
@@ -94,81 +94,6 @@ def run_id_to_date(run_id):
     return run_date
 
 
-def load_instrument(db, instrument):
-    """
-    """
-    existing_instruments = crud.get_instruments(db)
-    existing_instrument_ids = set([instrument.instrument_id for instrument in existing_instruments])
-    if instrument.instrument_id in existing_instrument_ids:
-        instrument = crud.get_instrument_by_id(db, instrument.instrument_id)
-    else:
-        instrument = crud.create_instrument(db, instrument)
-
-    return instrument
-
-
-def load_sequencing_run(db, run):
-    instrument_id = run.run_id.split('_')[1]
-    existing_runs = crud.get_sequencing_runs_by_instrument_id(db, instrument_id)
-    existing_run_ids = set([run.run_id for run in existing_runs])
-    if run.run_id in existing_run_ids:
-        sequencing_run = crud.get_sequencing_run_by_id(db, run.run_id)
-    else:
-        sequencing_run = crud.create_sequencing_run(db, run)
-
-    return sequencing_run
-
-
-def load_projects(db, parsed_samplesheet, samples_section_key, project_key, project_id_lookup):
-    """
-    """
-    project_ids_on_run = set()
-    db_project_id_by_project_id = {}
-    if samples_section_key is not None and project_key is not None:
-        for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
-            if samplesheet_sample_record[project_key] != "":
-                samplesheet_project_id = samplesheet_sample_record[project_key]
-                if samplesheet_project_id in project_id_lookup:
-                    project_id = project_id_lookup[samplesheet_project_id]
-                else:
-                    project_id = samplesheet_project_id
-                project_ids_on_run.add(project_id)
-
-        existing_projects = crud.get_projects(db)
-        existing_project_ids = set([project.project_id for project in existing_projects])
-        for project_id in project_ids_on_run:
-            if project_id in existing_project_ids:
-                project = crud.get_project_by_id(db, project_id)
-            else:
-                project = schemas.ProjectCreate(
-                    project_id = project_id,
-                )
-                project = crud.create_project(db, project)
-
-    return db_project_id_by_project_id
-
-
-def load_samples(db, parsed_samplesheet, samples_section_key, project_key, sequencing_run, db_project_id_by_project_id):
-    """
-    """
-    samples_to_create = []
-    for samplesheet_sample_record in parsed_samplesheet[samples_section_key]:
-        sample_id_key = determine_sample_id_key(samplesheet_sample_record)
-        sample_id = samplesheet_sample_record[sample_id_key]
-        project_id = samplesheet_sample_record[project_key]
-        if project_id in db_project_id_by_project_id:
-            db_project_id = db_project_id_by_project_id[project_id]
-        else:
-            db_project_id = None
-
-        sample = schemas.SampleCreate(
-            sample_id = sample_id,
-            project_id = db_project_id,
-        )
-        samples_to_create.append(sample)
-
-    crud.create_samples(db, samples_to_create, sequencing_run)
-
 
 def load_fastq_stats(db, fastq_dir, run_id):
     """
@@ -186,7 +111,7 @@ def load_fastq_stats(db, fastq_dir, run_id):
                     size_bytes = file_stats.st_size
                     md5_checksum = util.md5(fastq_path)
                     fastq_stats = fastq.collect_fastq_stats(fastq_path)
-                    # print(json.dumps(fastq_stats, indent=2))
+
                     fastq_file = schemas.FastqFileCreate(
                         sample_id = sample.id,
                         read_type = read_type,
@@ -206,8 +131,34 @@ def load_fastq_stats(db, fastq_dir, run_id):
         current_samples_batch = crud.get_samples_by_run_id(db, run_id, skip, limit)
 
     return None
-            
 
+
+def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
+    """
+    """
+    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
+    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+    gridion_run_id_regex = "\d{8}_\d{4}_X[1-5]_[A-Z0-9]+_[a-z0-9]{8}"
+    promethion_run_id_regex = "\d{8}_\d{4}_P2S_[0-9]{5}-\d{1}_[A-Z0-9]+_[a-z0-9]{8}"
+
+    instrument = {}
+    if re.match(miseq_run_id_regex, sequencing_run_id):
+        instrument['instrument_type'] = "ILLUMINA"
+        instrument['instrument_model'] = "MISEQ"
+        instrument['instrument_id'] = sequencing_run_id.split('_')[1]
+    elif re.match(nextseq_run_id_regex, sequencing_run_id):
+        instrument['instrument_type'] = "ILLUMINA"
+        instrument['instrument_model'] = "NEXTSEQ"
+        instrument['instrument_id'] = sequencing_run_id.split('_')[1]
+    elif re.match(gridion_run_id_regex, sequencing_run_id):
+        instrument['instrument_type'] = "NANOPORE"
+        instrument['instrument_model'] = "GRIDION"
+    elif re.match(promethion_run_id_regex, sequencing_run_id):
+        instrument['instrument_type'] = "NANOPORE"
+        instrument['instrument_model'] = "PROMETHION"
+
+    return instrument
+    
 
 def main(args):
     db_url = "sqlite:///" + args.db
@@ -217,63 +168,73 @@ def main(args):
     if args.project_id_translation_table:
         project_id_lookup = parse_project_id_translation(args.project_id_translation_table)
 
-    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
-    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+    sequencing_run_id = os.path.basename(args.run_dir.rstrip('/'))
 
-    run_id = os.path.basename(args.run_dir.rstrip('/'))
+    sequencing_run = {
+        'sequencing_run_id': sequencing_run_id
+    }
+    run_date = run_id_to_date(sequencing_run_id)
+    sequencing_run['run_date'] = run_date
 
-    if re.match(miseq_run_id_regex, run_id):
-        instrument_type = "miseq"
-        fastq_dir = os.path.join(args.run_dir, 'Data', 'Intensities', 'BaseCalls')
-    elif re.match(nextseq_run_id_regex, run_id):
-        instrument_type = "nextseq"
-        # TODO: select the most recent Analysis dir
-        fastq_dir = os.path.join(args.run_dir, 'Analysis', '1', 'Data', 'fastq')
-    else:
-        instrument_type = None
+    instrument = get_instrument_info_by_sequencing_run_id(sequencing_run_id)
 
-    if instrument_type == "miseq" or instrument_type == "nextseq":
-        instrument_manufacturer_name = "illumina"
-        instrument_id = run_id.split('_')[1]
+    sequencing_run.update(instrument)
+
+    if instrument['instrument_type'] == "ILLUMINA":
         interop_summary = interop.summary_nonindex(os.path.join(args.run_dir))
+        sequencing_run.update(interop_summary)
     else:
-        instrument_manufacturer_name = None
-        instrument_id = None
+        final_summary_files = glob.glob(os.path.join(args.run_dir, 'final_summary_*.txt'))
+        final_summary_file = None
+        if len(final_summary_files) > 0:
+            # There *should* be only one of these files.
+            # If there are more than one, we arbitrarily take the first
+            final_summary_file = final_summary_files[0]
+            if os.path.exists(final_summary_file):
+                final_summary = nanopore.parse_final_summary(final_summary_file)
+                instrument['instrument_id'] = final_summary['instrument_id']
+                sequencing_run.update(final_summary)
+                
+        sequencing_run_report_files = glob.glob(os.path.join(args.run_dir, 'report_*.json'))
+        final_summary_file = None
+        if len(sequencing_run_report_files) > 0:
+            # There *should* be only one of these files.
+            # If there are more than one, we arbitrarily take the first
+            sequencing_run_report_file = sequencing_run_report_files[0]
+            if os.path.exists(sequencing_run_report_file):
+                sequencing_run_report = nanopore.parse_sequencing_run_report(sequencing_run_report_file)
+                run_yield = nanopore.collect_run_yield_from_run_report(sequencing_run_report)
+                sequencing_run.update(run_yield)
+        
 
-    run_date = run_id_to_date(run_id)
+    if instrument['instrument_type'] == 'ILLUMINA':
+        created_instrument = crud.create_instrument_illumina(db, instrument)
+    elif instrument['instrument_type'] == 'NANOPORE':
+        created_instrument = crud.create_instrument_nanopore(db, instrument)
 
-    instrument = schemas.InstrumentCreate(
-        instrument_id = instrument_id,
-        instrument_type = instrument_type,
-        manufacturer_name = instrument_manufacturer_name,
-    )
 
-    instrument = load_instrument(db, instrument)
+    if instrument['instrument_type'] == 'ILLUMINA':
+        created_sequencing_run = crud.create_sequencing_run_illumina(db, sequencing_run, commit=False)
+    elif instrument['instrument_type'] == 'NANOPORE':
+        created_sequencing_run = crud.create_sequencing_run_nanopore(db, sequencing_run, commit=False)
 
-    sequencing_run = schemas.SequencingRunCreate(
-        instrument = instrument,
-        run_id = run_id,
-        run_date = run_date,
-        cluster_count = interop_summary['cluster_count'],
-        cluster_count_passed_filter = interop_summary['cluster_count_passed_filter'],
-        error_rate = interop_summary['error_rate'],
-        percent_bases_greater_or_equal_to_q30 = interop_summary['percent_bases_greater_or_equal_to_q30'],
-    )
+    db.commit()
+    exit()
+    
 
-    sequencing_run = load_sequencing_run(db, sequencing_run)
-
-    samplesheet_paths = samplesheet.find_samplesheets(args.run_dir, instrument_type)
-    samplesheet_to_parse = samplesheet.choose_samplesheet_to_parse(samplesheet_paths, instrument_type)
-    parsed_samplesheet = samplesheet.parse_samplesheet(samplesheet_to_parse, instrument_type)
+    samplesheet_paths = samplesheet.find_samplesheets(args.run_dir, instrument['instrument_type'])
+    samplesheet_to_parse = samplesheet.choose_samplesheet_to_parse(samplesheet_paths, instrument['instrument_type'])
+    parsed_samplesheet = samplesheet.parse_samplesheet(samplesheet_to_parse, instrument['instrument_type'])
 
     samples_section_key = None
     project_key = None
-    if instrument_type == "nextseq":
-        samples_section_key = "cloud_data"
-        project_key = "project_name"
-    elif instrument_type == "miseq":
-        samples_section_key = "data"
-        project_key = "sample_project"
+    if instrument['instrument_type'] == "ILLUMINA":
+        if instrument['instrument_model'] == "NEXTSEQ":
+            samples_section_key = "cloud_data"
+            project_key = "project_name"
+        elif instrument['instrument_model'] == "MISEQ":
+            samples_section_key = "data"
+            project_key = "sample_project"
 
 
     # First load all projects on run that aren't already in the db

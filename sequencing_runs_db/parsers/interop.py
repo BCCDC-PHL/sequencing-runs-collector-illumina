@@ -9,9 +9,9 @@ summary_field_translation = {
     'Error Rate': 'error_rate',
     'First Cycle Intensity': 'first_cycle_intensity',
     '% Aligned': 'percent_aligned',
-    '% >= Q30': 'percent_bases_greater_or_equal_to_q30',
+    '% >= Q30': 'q30_percent',
     '% Occupied': 'percent_occupied',
-    'Projected Yield G': 'projected_yield',
+    'Projected Yield G': 'projected_yield_gigabases',
     'Reads': 'num_reads',
     'Reads Pf': 'num_reads_passed_filter',
     'Yield G': 'yield_gigabases',
@@ -56,6 +56,7 @@ def summary_nonindex(run_dir_path):
     summary_nonindex_ndarray = interop.summary(run_dir_path, 'NonIndex')
 
     original_field_names = summary_nonindex_ndarray.dtype.names
+
     summary_dict = {}
 
     for s in summary_nonindex_ndarray.tolist():
