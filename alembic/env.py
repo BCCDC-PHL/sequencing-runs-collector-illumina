@@ -16,7 +16,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from sequencing_runs_service import models
+from sequencing_runs_db import models
 target_metadata = models.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
