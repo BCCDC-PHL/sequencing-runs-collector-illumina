@@ -1,8 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, Float, String, Date
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 
-from .database import Base
-
+Base = declarative_base()
 
 class InstrumentIllumina(Base):
     __tablename__ = "instrument_illumina"
@@ -84,6 +83,7 @@ class SequencedLibraryIllumina(Base):
     library_id = Column(String, index=True)
     sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_illumina.id"))
     project_id = Column(Integer, ForeignKey("project.id"))
+    samplesheet_project_id = Column(String)
     num_reads = Column(Integer)
     num_bases = Column(Integer)
     q30_rate = Column(Float)
