@@ -18,6 +18,7 @@ setup(
         "jsonschema==4.17.3",
         "interop==1.2.3",
         "pyfastx==1.0.1",
+        "pytz==2023.3",
     ],
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=[],

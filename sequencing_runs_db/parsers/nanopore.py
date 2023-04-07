@@ -1,7 +1,6 @@
 import datetime
 import json
 
-
 def parse_final_summary(final_summary_path):
     """
     """
@@ -152,11 +151,14 @@ def collect_acquisition_runs_from_run_report(run_report):
                     a['percent_bases_passed_filter'] = a['num_bases_passed_filter'] / a['num_bases_total'] * 100
                 else:
                     a['percent_bases_passed_filter'] = 0.0
+
+                # TODO: Clean up this timestamp parsing logic. This is a bit messy/flaky
                 start_time = acquisition['acquisition_run_info']['start_time']
                 if start_time and start_time.endswith('Z'):
                     start_time_nanoseconds = start_time.split('.', 1)[1].rstrip('Z')
                     start_time_microseconds = start_time_nanoseconds[0:6]
                     start_time = start_time.split('.')[0] + '.' + start_time_microseconds + '+00:00'
+                    print(start_time)
                     try:
                         a['timestamp_acquisition_started'] = datetime.datetime.fromisoformat(start_time)
                     except ValueError as e:

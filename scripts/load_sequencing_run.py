@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# stdlib
 import argparse
 import csv
 import datetime
@@ -8,10 +9,14 @@ import json
 import os
 import re
 
+# third-party
+import pytz
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+# project-local
 import sequencing_runs_db.crud as crud
 import sequencing_runs_db.util as util
 import sequencing_runs_db.parsers.samplesheet as samplesheet
@@ -22,15 +27,28 @@ import sequencing_runs_db.parsers.nanopore as nanopore
 import sequencing_runs_db.parsers.fastq as fastq
 
 
-def create_db_session(db_url):
+def load_config(config_path):
     """
     """
-    engine = create_engine(
-        db_url, connect_args={"check_same_thread": False}
-    )
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    config = {}
+    with open(config_path, 'r') as f:
+        config = json.load(f)
 
-    session = SessionLocal()
+    return config
+
+
+def create_db_session(config):
+    """
+    """
+    session = None
+    if 'database_connection_uri' in config:
+        db_url = config['database_connection_uri']
+        engine = create_engine(
+            db_url, connect_args={"check_same_thread": False}
+        )
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+        session = SessionLocal()
 
     return session
 
@@ -165,13 +183,21 @@ def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
     
 
 def main(args):
-    db_url = "sqlite:///" + args.db
-    db = create_db_session(db_url)
+
+    #
+    # Setup Phase
+    #
+    config = load_config(args.config)
+
+    db = create_db_session(config)
 
     project_id_lookup = {}
     if args.project_id_translation_table:
         project_id_lookup = parse_project_id_translation(args.project_id_translation_table)
 
+    #
+    # Extract/Transform Phase
+    #
     sequencing_run_id = os.path.basename(args.run_dir.rstrip('/'))
 
     instrument = get_instrument_info_by_sequencing_run_id(sequencing_run_id)
@@ -219,9 +245,21 @@ def main(args):
                 acquisition_runs = nanopore.collect_acquisition_runs_from_run_report(sequencing_run_report)
                 for acquisition_run in acquisition_runs:
                     acquisition_run['sequencing_run_id'] = sequencing_run_id
+                    if 'local_timezone' in config:
+                        local_timezone = pytz.timezone(config['local_timezone'])
+                        utc_datetime_keys = [
+                            'timestamp_acquisition_started',
+                            'timestamp_acquisition_stopped',
+                        ]
+                        for k in utc_datetime_keys:
+                            acquisition_run[k] = acquisition_run[k].replace(tzinfo=pytz.utc).astimezone(local_timezone)
+                    
                     sequencing_run['acquisition_runs'].append(acquisition_run)
         
 
+    #
+    # Load Phase
+    # 
     if instrument['instrument_type'] == 'ILLUMINA':
         created_instrument = crud.create_instrument_illumina(db, instrument)
     elif instrument['instrument_type'] == 'NANOPORE':
@@ -234,6 +272,7 @@ def main(args):
         created_sequencing_run = crud.create_sequencing_run_nanopore(db, sequencing_run, commit=True)
         created_acquisition_runs = []
         for acquisition_run in sequencing_run['acquisition_runs']:
+            print(acquisition_run)
             created_acquisition_run = crud.create_acquisition_run_nanopore(db, acquisition_run, commit=False)
             created_acquisition_runs.append(created_acquisition_run)
 
@@ -271,7 +310,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--db')
+    parser.add_argument('-c', '--config')
     parser.add_argument('--project-id-translation-table')
     parser.add_argument('run_dir')
     args = parser.parse_args()
