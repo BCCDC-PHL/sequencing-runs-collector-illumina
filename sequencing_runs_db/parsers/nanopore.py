@@ -158,7 +158,6 @@ def collect_acquisition_runs_from_run_report(run_report):
                     start_time_nanoseconds = start_time.split('.', 1)[1].rstrip('Z')
                     start_time_microseconds = start_time_nanoseconds[0:6]
                     start_time = start_time.split('.')[0] + '.' + start_time_microseconds + '+00:00'
-                    print(start_time)
                     try:
                         a['timestamp_acquisition_started'] = datetime.datetime.fromisoformat(start_time)
                     except ValueError as e:
@@ -178,6 +177,9 @@ def collect_acquisition_runs_from_run_report(run_report):
                 a['stop_reason'] = acquisition['acquisition_run_info']['stop_reason']
                 a['basecalling_config_filename'] = acquisition['acquisition_run_info']['config_summary']['basecalling_config_filename']
                 a['purpose'] = acquisition['acquisition_run_info']['config_summary']['purpose']
+                a['events_to_base_ratio'] = float(acquisition['acquisition_run_info']['config_summary']['events_to_base_ratio'])
+                a['sample_rate'] = int(acquisition['acquisition_run_info']['config_summary']['sample_rate'])
+                a['channel_count'] = int(acquisition['acquisition_run_info']['config_summary']['channel_count'])
             except KeyError as e:
                 pass
             except ValueError as e:

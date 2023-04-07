@@ -103,6 +103,9 @@ class AcquisitionRunNanopore(Base):
     finishing_state = Column(String)
     stop_reason = Column(String)
     purpose = Column(String)
+    events_to_base_ratio = Column(Float)
+    sample_rate = Column(Integer)
+    channel_count = Column(Integer)
     basecalling_config_filename = Column(String)
 
     sequencing_run = relationship("SequencingRunNanopore", back_populates="acquisition_runs")

@@ -189,7 +189,11 @@ def main(args):
     #
     config = load_config(args.config)
 
-    db = create_db_session(config)
+    if 'database_connection_uri' in config:
+        db = create_db_session(config)
+    else:
+        print("Cannot connect to db, no connection uri provided")
+        exit(-1)
 
     project_id_lookup = {}
     if args.project_id_translation_table:
@@ -272,7 +276,6 @@ def main(args):
         created_sequencing_run = crud.create_sequencing_run_nanopore(db, sequencing_run, commit=True)
         created_acquisition_runs = []
         for acquisition_run in sequencing_run['acquisition_runs']:
-            print(acquisition_run)
             created_acquisition_run = crud.create_acquisition_run_nanopore(db, acquisition_run, commit=False)
             created_acquisition_runs.append(created_acquisition_run)
 

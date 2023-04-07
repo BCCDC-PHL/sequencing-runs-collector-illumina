@@ -239,6 +239,9 @@ def create_acquisition_run_nanopore(db: Session, acquisition_run, commit=True):
                 'finishing_state',
                 'stop_reason',
                 'purpose',
+                'events_to_base_ratio',
+                'sample_rate',
+                'channel_count',
                 'basecalling_config_filename',
             ]
 
