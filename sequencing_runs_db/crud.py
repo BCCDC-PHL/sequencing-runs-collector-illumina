@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from sqlalchemy import select, delete, and_
@@ -41,7 +42,17 @@ def create_instrument_illumina(db: Session, instrument, commit=True):
     ).one_or_none()
 
     if existing_instrument is None:
-        db_instrument = InstrumentIllumina(**instrument)
+        db_instrument_fields = [
+            'instrument_id',
+            'instrument_type',
+            'instrument_model',
+            'status',
+            'timestamp_status_updated',
+        ]
+        instrument_filtered = {
+            k: instrument.get(k, None) for k in db_instrument_fields
+        }
+        db_instrument = InstrumentIllumina(**instrument_filtered)
         db.add(db_instrument)
         if commit:
             db.commit()
@@ -62,7 +73,17 @@ def create_instrument_nanopore(db: Session, instrument, commit=True):
     ).one_or_none()
     
     if existing_instrument is None:
-        db_instrument = InstrumentNanopore(**instrument)
+        instrument_fields = [
+            'instrument_id',
+            'instrument_type',
+            'instrument_model',
+            'status',
+            'timestamp_status_updated',
+        ]
+        instrument_filtered = {
+            k: instrument.get(k, None) for k in instrument_fields
+        }
+        db_instrument = InstrumentNanopore(**instrument_filtered)
         db.add(db_instrument)
         if commit:
             db.commit()
@@ -115,19 +136,27 @@ def create_sequencing_run_illumina(db: Session, sequencing_run, commit=True):
     ).one_or_none()
 
     if existing_instrument is not None:
-        db_sequencing_run = SequencingRunIllumina(
-            instrument_id = existing_instrument.id,
-            sequencing_run_id = sequencing_run['sequencing_run_id'],
-            run_date = sequencing_run['run_date'],
-            cluster_count = sequencing_run['cluster_count'],
-            cluster_count_passed_filter = sequencing_run['cluster_count_passed_filter'],
-            error_rate = sequencing_run['error_rate'],
-            q30_percent = sequencing_run['q30_percent'],
-            projected_yield_gigabases = sequencing_run['projected_yield_gigabases'],
-            num_reads = sequencing_run['num_reads'],
-            num_reads_passed_filter = sequencing_run['num_reads_passed_filter'],
-            yield_gigabases = sequencing_run['yield_gigabases'],
-        )
+        sequencing_run_fields = [
+            'sequencing_run_id',
+            'flowcell_id',
+            'run_date',
+            'cluster_count',
+            'cluster_count_passed_filter',
+            'error_rate',
+            'first_cycle_intensity',
+            'percent_aligned',
+            'q30_percent',
+            'projected_yield_gigabases',
+            'num_reads',
+            'num_reads_passed_filter',
+            'percent_reads_passed_filter',
+            'yield_gigabases',
+        ]
+        sequencing_run_filtered = {
+            k: sequencing_run.get(k, None) for k in sequencing_run_fields
+        }
+        sequencing_run_filtered['instrument_id'] = existing_instrument.id
+        db_sequencing_run = SequencingRunIllumina(**sequencing_run_filtered)
         db.add(db_sequencing_run)
         if commit:
             db.commit()
@@ -179,6 +208,52 @@ def create_sequencing_run_nanopore(db: Session, sequencing_run, commit=True):
 
     return db_sequencing_run
 
+
+def create_acquisition_run_nanopore(db: Session, acquisition_run, commit=True):
+    """
+    """
+    db_acquisition_run = None
+
+    existing_sequencing_run = db.query(SequencingRunNanopore).filter(
+        SequencingRunNanopore.sequencing_run_id == acquisition_run['sequencing_run_id']
+    ).one_or_none()
+
+    if existing_sequencing_run is not None:
+        existing_acquisition_run = db.query(AcquisitionRunNanopore).filter(
+            AcquisitionRunNanopore.acquisition_run_id == acquisition_run['acquisition_run_id']
+        ).one_or_none()
+        if existing_acquisition_run is None:
+            db_acquisition_run_nanopore_fields = [
+                'acquisition_run_id',
+                'num_reads_total',
+                'num_reads_passed_filter',
+                'num_reads_skipped',
+                'percent_reads_passed_filter',
+                'num_bases_total',
+                'num_bases_passed_filter',
+                'percent_bases_passed_filter',
+                'timestamp_acquisition_started',
+                'timestamp_acquisition_stopped',
+                'startup_state',
+                'state',
+                'finishing_state',
+                'stop_reason',
+                'purpose',
+                'basecalling_config_filename',
+            ]
+
+            filtered_acquisition_run = {
+                k: acquisition_run.get(k, None) for k in db_acquisition_run_nanopore_fields
+            }
+            filtered_acquisition_run['sequencing_run_id'] = existing_sequencing_run.id
+            
+            db_acquisition_run = AcquisitionRunNanopore(**filtered_acquisition_run)
+            db.add(db_acquisition_run)
+            if commit:
+                db.commit()
+                db.refresh(db_acquisition_run)
+
+    return db_acquisition_run
 
 
 def delete_sequencing_run_illumina(db: Session, run_id: str, commit=True):

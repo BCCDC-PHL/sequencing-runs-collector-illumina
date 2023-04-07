@@ -53,6 +53,7 @@ class SequencingRunIllumina(Base):
     projected_yield_gigabases = Column(Float)
     num_reads = Column(Integer)
     num_reads_passed_filter = Column(Integer)
+    percent_reads_passed_filter = Column(Float)
     yield_gigabases = Column(Float)
 
     instrument = relationship("InstrumentIllumina", back_populates="sequencing_runs")
@@ -80,6 +81,7 @@ class SequencingRunNanopore(Base):
 
     instrument = relationship("InstrumentNanopore", back_populates="sequencing_runs")
     libraries = relationship("SequencedLibraryNanopore", back_populates="sequencing_run")
+    acquisition_runs = relationship("AcquisitionRunNanopore", back_populates="sequencing_run")
 
 
 class AcquisitionRunNanopore(Base):
@@ -87,15 +89,23 @@ class AcquisitionRunNanopore(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     sequencing_run_id = Column(Integer, ForeignKey("sequencing_run_nanopore.id"))
     acquisition_run_id = Column(String, index=True, unique=True)
-    timestamp_acquisition_started = Column(DateTime)
-    timestamp_acquisition_stopped = Column(DateTime)
-    acquisition_duration_seconds = Column(Integer)
     num_reads_total = Column(Integer)
     num_reads_passed_filter = Column(Integer)
     num_reads_skipped = Column(Integer)
+    percent_reads_passed_filter = Column(Float)
     num_bases_total = Column(Integer)
     num_bases_passed_filter = Column(Integer)
-    basecalling_config = Column(String)
+    percent_bases_passed_filter = Column(Float)
+    timestamp_acquisition_started = Column(DateTime)
+    timestamp_acquisition_stopped = Column(DateTime)
+    startup_state = Column(String)
+    state = Column(String)
+    finishing_state = Column(String)
+    stop_reason = Column(String)
+    purpose = Column(String)
+    basecalling_config_filename = Column(String)
+
+    sequencing_run = relationship("SequencingRunNanopore", back_populates="acquisition_runs")
 
 
 class AcquisitionSnapshotNanopore(Base):

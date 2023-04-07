@@ -113,3 +113,74 @@ def collect_run_yield_from_run_report(parsed_report):
         if run_yield['yield_bases'] != None:
             run_yield['yield_gigabases'] = run_yield['yield_bases'] / 1000000000
     return run_yield
+
+
+def collect_acquisition_runs_from_run_report(run_report):
+    """
+    """
+    acquisitions = []
+    if 'acquisitions' in run_report:
+        for acquisition in run_report['acquisitions']:
+            a = {
+                'acquisition_run_id': None,
+                'timestamp_acquisition_started': None,
+                'timestamp_acquisition_stopped': None,
+                'num_reads_total': None,
+                'num_reads_passed_filter': None,
+                'percent_reads_passed_filter': None,
+                'num_reads_skipped': None,
+                'num_bases_passed_filter': None,
+                'basecalling_config_filename': None,
+            }
+            # TODO: separate out some of this into separate try/except
+            # Currently, it 'short-circuits' if any field fails to parse
+            try:
+                a['acquisition_run_id'] = acquisition['acquisition_run_info']['run_id']
+                a['num_reads_total'] = int(acquisition['acquisition_run_info']['yield_summary']['read_count'])
+                a['num_reads_passed_filter'] = int(acquisition['acquisition_run_info']['yield_summary']['basecalled_pass_read_count'])
+                a['num_reads_skipped'] = int(acquisition['acquisition_run_info']['yield_summary']['basecalled_skipped_read_count'])
+                if a['num_reads_total'] > 0:
+                    a['percent_reads_passed_filter'] = a['num_reads_passed_filter'] / a['num_reads_total'] * 100
+                else:
+                    a['percent_reads_passed_filter'] = 0.0
+                num_bases_passed = int(acquisition['acquisition_run_info']['yield_summary']['basecalled_pass_bases'])
+                num_bases_failed = int(acquisition['acquisition_run_info']['yield_summary']['basecalled_fail_bases'])
+                num_bases_total = num_bases_passed + num_bases_failed
+                a['num_bases_total'] = num_bases_total
+                a['num_bases_passed_filter'] = num_bases_passed
+                if num_bases_total > 0:
+                    a['percent_bases_passed_filter'] = a['num_bases_passed_filter'] / a['num_bases_total'] * 100
+                else:
+                    a['percent_bases_passed_filter'] = 0.0
+                start_time = acquisition['acquisition_run_info']['start_time']
+                if start_time and start_time.endswith('Z'):
+                    start_time_nanoseconds = start_time.split('.', 1)[1].rstrip('Z')
+                    start_time_microseconds = start_time_nanoseconds[0:6]
+                    start_time = start_time.split('.')[0] + '.' + start_time_microseconds + '+00:00'
+                    try:
+                        a['timestamp_acquisition_started'] = datetime.datetime.fromisoformat(start_time)
+                    except ValueError as e:
+                        pass
+                end_time = acquisition['acquisition_run_info']['end_time']
+                if end_time and end_time.endswith('Z'):
+                    end_time_nanoseconds = end_time.split('.', 1)[1].rstrip('Z')
+                    end_time_microseconds = end_time_nanoseconds[0:6]
+                    end_time = start_time.split('.')[0] +  '.' + end_time_microseconds + '+00:00'
+                    try:
+                        a['timestamp_acquisition_stopped'] = datetime.datetime.fromisoformat(end_time)
+                    except ValueError as e:
+                        pass
+                a['startup_state'] = acquisition['acquisition_run_info']['startup_state']
+                a['state'] = acquisition['acquisition_run_info']['state']
+                a['finishing_state'] = acquisition['acquisition_run_info']['finishing_state']
+                a['stop_reason'] = acquisition['acquisition_run_info']['stop_reason']
+                a['basecalling_config_filename'] = acquisition['acquisition_run_info']['config_summary']['basecalling_config_filename']
+                a['purpose'] = acquisition['acquisition_run_info']['config_summary']['purpose']
+            except KeyError as e:
+                pass
+            except ValueError as e:
+                pass
+
+            acquisitions.append(a)
+            
+    return acquisitions

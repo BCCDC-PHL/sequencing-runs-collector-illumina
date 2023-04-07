@@ -146,16 +146,20 @@ def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
         instrument['instrument_type'] = "ILLUMINA"
         instrument['instrument_model'] = "MISEQ"
         instrument['instrument_id'] = sequencing_run_id.split('_')[1]
+        instrument['flowcell_id'] = sequencing_run_id.split('_')[-1]
     elif re.match(nextseq_run_id_regex, sequencing_run_id):
         instrument['instrument_type'] = "ILLUMINA"
         instrument['instrument_model'] = "NEXTSEQ"
         instrument['instrument_id'] = sequencing_run_id.split('_')[1]
+        instrument['flowcell_id'] = sequencing_run_id.split('_')[-1]
     elif re.match(gridion_run_id_regex, sequencing_run_id):
         instrument['instrument_type'] = "NANOPORE"
         instrument['instrument_model'] = "GRIDION"
+        instrument['flowcell_id'] = sequencing_run_id.split('_')[-2]
     elif re.match(promethion_run_id_regex, sequencing_run_id):
         instrument['instrument_type'] = "NANOPORE"
         instrument['instrument_model'] = "PROMETHION"
+        instrument['flowcell_id'] = sequencing_run_id.split('_')[-2]
 
     return instrument
     
@@ -170,20 +174,24 @@ def main(args):
 
     sequencing_run_id = os.path.basename(args.run_dir.rstrip('/'))
 
+    instrument = get_instrument_info_by_sequencing_run_id(sequencing_run_id)
+    
     sequencing_run = {
         'sequencing_run_id': sequencing_run_id
     }
     run_date = run_id_to_date(sequencing_run_id)
     sequencing_run['run_date'] = run_date
 
-    instrument = get_instrument_info_by_sequencing_run_id(sequencing_run_id)
-
     sequencing_run.update(instrument)
 
     if instrument['instrument_type'] == "ILLUMINA":
         interop_summary = interop.summary_nonindex(os.path.join(args.run_dir))
+        if interop_summary.get('num_reads', None) and interop_summary.get('num_reads_passed_filter', None):
+            interop_summary['percent_reads_passed_filter'] = interop_summary['num_reads_passed_filter'] / interop_summary['num_reads'] * 100
+        if interop_summary.get('cluster_count', None) and interop_summary.get('cluster_count_passed_filter', None):
+            interop_summary['percent_clusters_passed_filter'] = interop_summary['cluster_count_passed_filter'] / interop_summary['cluster_count'] * 100
         sequencing_run.update(interop_summary)
-    else:
+    elif instrument['instrument_type'] == "NANOPORE":
         final_summary_files = glob.glob(os.path.join(args.run_dir, 'final_summary_*.txt'))
         final_summary_file = None
         if len(final_summary_files) > 0:
@@ -203,8 +211,15 @@ def main(args):
             sequencing_run_report_file = sequencing_run_report_files[0]
             if os.path.exists(sequencing_run_report_file):
                 sequencing_run_report = nanopore.parse_sequencing_run_report(sequencing_run_report_file)
+                flowcell_product_code = sequencing_run_report['protocol_run_info']['flow_cell']['product_code']
+                sequencing_run['flowcell_product_code'] = flowcell_product_code
                 run_yield = nanopore.collect_run_yield_from_run_report(sequencing_run_report)
                 sequencing_run.update(run_yield)
+                sequencing_run['acquisition_runs'] = []
+                acquisition_runs = nanopore.collect_acquisition_runs_from_run_report(sequencing_run_report)
+                for acquisition_run in acquisition_runs:
+                    acquisition_run['sequencing_run_id'] = sequencing_run_id
+                    sequencing_run['acquisition_runs'].append(acquisition_run)
         
 
     if instrument['instrument_type'] == 'ILLUMINA':
@@ -216,9 +231,14 @@ def main(args):
     if instrument['instrument_type'] == 'ILLUMINA':
         created_sequencing_run = crud.create_sequencing_run_illumina(db, sequencing_run, commit=False)
     elif instrument['instrument_type'] == 'NANOPORE':
-        created_sequencing_run = crud.create_sequencing_run_nanopore(db, sequencing_run, commit=False)
+        created_sequencing_run = crud.create_sequencing_run_nanopore(db, sequencing_run, commit=True)
+        created_acquisition_runs = []
+        for acquisition_run in sequencing_run['acquisition_runs']:
+            created_acquisition_run = crud.create_acquisition_run_nanopore(db, acquisition_run, commit=False)
+            created_acquisition_runs.append(created_acquisition_run)
 
     db.commit()
+    db.close()
     exit()
     
 
