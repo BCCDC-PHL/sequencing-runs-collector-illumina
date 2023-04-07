@@ -27,7 +27,7 @@ def get_instrument_illumina_by_id(db: Session, instrument_id: str):
     """
     db_instrument = db.query(InstrumentIllumina).filter(
         InstrumentIllumina.instrument_id == instrument_id
-    ).first()
+    ).one_or_none()
     
     return db_instrument
 
@@ -38,14 +38,14 @@ def create_instrument_illumina(db: Session, instrument, commit=True):
     db_instrument = None
     existing_instrument = db.query(InstrumentIllumina).filter(
         InstrumentIllumina.instrument_id == instrument['instrument_id']
-    ).first()
+    ).one_or_none()
 
     if existing_instrument is None:
         db_instrument = InstrumentIllumina(**instrument)
         db.add(db_instrument)
         if commit:
             db.commit()
-        db.refresh(db_instrument)
+            db.refresh(db_instrument)
     else:
         db_instrument = existing_instrument
     
@@ -100,7 +100,7 @@ def get_sequencing_run_illumina_by_id(db: Session, run_id: str):
     """
     db_sequencing_run = db.query(SequencingRunIllumina).filter(
         SequencingRunIllumina.sequencing_run_id == run_id
-    ).first()
+    ).one_or_none()
 
     return db_sequencing_run
 
@@ -218,7 +218,7 @@ def get_project_by_id(db: Session, project_id):
     """
     project = db.query(Project).filter(
         Project.project_id == project_id
-    ).first()
+    ).one_or_none()
 
     return project
 
@@ -226,13 +226,20 @@ def get_project_by_id(db: Session, project_id):
 def create_project(db: Session, project, commit=True):
     """
     """
-    db_project = Project(
-        project_id = project.project_id,
-    )
-    db.add(db_project)
-    if commit:
-        db.commit()
-    db.refresh(db_project)
+    db_project = None
+    existing_project = db.query(Project).filter(
+        Project.project_id == project['project_id']
+    ).one_or_none()
+
+    if existing_project is None:
+        db_project = Project(
+            project_id = project.project_id,
+        )
+        db.add(db_project)
+
+        if commit:
+            db.commit()
+            db.refresh(db_project)
 
     return db_project
 
@@ -243,9 +250,9 @@ def get_libraries_by_sequencing_run_illumina_id(db: Session, run_id: str, skip: 
     """
     db_libraries = None
 
-    existing_sequencing_run = db.query(SequencingRunIllumina) \
-                                .filter(SequencingRunIllumina.run_id == run_id) \
-                                .first()
+    existing_sequencing_run = db.query(SequencingRunIllumina).filter(
+        SequencingRunIllumina.run_id == run_id
+    ).one_or_none()
     
     if existing_sequencing_run is not None:
         db_libraries = db.query(SequencedLibraryIllumina).filter(
@@ -265,7 +272,7 @@ def get_illumina_libraries_by_project_id(db: Session, project_id: str, skip: int
     return db_libraries
 
 
-def create_libraries_illumina(db: Session, libraries: list[dict], sequencing_run: dict):
+def create_libraries_illumina(db: Session, libraries: list[dict], sequencing_run: dict, commit=True):
     """
     Create a set of sequenced illumina library records in the database.
 
@@ -281,19 +288,17 @@ def create_libraries_illumina(db: Session, libraries: list[dict], sequencing_run
     db_libraries = []
     existing_instrument = db.query(InstrumentIllumina).filter(
         InstrumentIllumina.instrument_id == sequencing_run['instrument_id']
-    ).first()
+    ).one_or_none()
 
     existing_sequencing_run = db.query(SequencingRunIllumina).filter(
         SequencingRunIllumina.sequencing_run_id == sequencing_run['sequencing_run_id']
-    ).first()
+    ).one_or_none()
 
-    
-    
     if existing_instrument is not None and existing_sequencing_run is not None:
         for library in libraries:
             existing_project = db.query(Project).filter(
                 Project.project_id == library['library_id']
-            ).first()
+            ).one_or_none()
 
             db_library = SequencedLibraryIllumina(
                 library_id = library['library_id'],
@@ -311,12 +316,14 @@ def create_libraries_illumina(db: Session, libraries: list[dict], sequencing_run
             db.add(db_library)
             db_libraries.append(db_library)
 
-    db.commit()
+    if commit:
+        db.commit()
 
     return db_libraries
 
+
 ###### Fastq Files
-def create_fastq_file(db: Session, fastq_file):
+def create_fastq_file(db: Session, fastq_file, commit=True):
     """
     Create a fastq file record in the database.
 
@@ -342,7 +349,8 @@ def create_fastq_file(db: Session, fastq_file):
         q30_rate = fastq_file['q30_rate'],
     )
     db.add(db_fastq_file)
-    db.commit()
-    db.refresh(db_fastq_file)
+    if commit:
+        db.commit()
+        db.refresh(db_fastq_file)
 
     return db_fastq_file
