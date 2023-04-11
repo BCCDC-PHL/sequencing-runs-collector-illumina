@@ -23,7 +23,7 @@ setup(
         "flask-sqlalchemy==3.0.3",
         "marshmallow-jsonapi==0.24.0",
         # These are testing requirements, should be moved to
-        # another section
+        # another section and installed only in testing env
         "pytest==7.3.0",
         "requests==2.28.2",
     ],
