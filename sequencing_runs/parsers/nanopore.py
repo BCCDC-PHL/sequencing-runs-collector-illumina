@@ -123,7 +123,7 @@ def collect_acquisition_runs_from_run_report(run_report):
             a = {
                 'acquisition_run_id': None,
                 'timestamp_acquisition_started': None,
-                'timestamp_acquisition_stopped': None,
+                'timestamp_acquisition_ended': None,
                 'num_reads_total': None,
                 'num_reads_passed_filter': None,
                 'percent_reads_passed_filter': None,
@@ -168,7 +168,7 @@ def collect_acquisition_runs_from_run_report(run_report):
                     end_time_microseconds = end_time_nanoseconds[0:6]
                     end_time = start_time.split('.')[0] +  '.' + end_time_microseconds + '+00:00'
                     try:
-                        a['timestamp_acquisition_stopped'] = datetime.datetime.fromisoformat(end_time)
+                        a['timestamp_acquisition_ended'] = datetime.datetime.fromisoformat(end_time)
                     except ValueError as e:
                         pass
                 a['startup_state'] = acquisition['acquisition_run_info']['startup_state']

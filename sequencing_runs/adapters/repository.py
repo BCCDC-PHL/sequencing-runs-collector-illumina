@@ -134,7 +134,6 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
         return sequencing_runs
 
 
-
 class SqlAlchemyNanoporeSequencingRunRepository(Repository):
     """
     """

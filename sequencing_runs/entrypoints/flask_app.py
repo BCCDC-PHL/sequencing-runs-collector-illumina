@@ -18,8 +18,7 @@ orm.start_mappers()
 @app.route("/instruments", methods=["GET"])
 def get_instruments():
     illumina_instruments = views.illumina_instruments(unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWork())
-    nanopore_instruments = views.illumina_instruments(unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork())
-    app.logger.debug('Called: views.illumina_instruments()')
+    nanopore_instruments = views.nanopore_instruments(unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork())
     response = []
     for instrument in illumina_instruments:
         instrument_dict = instrument.to_dict()

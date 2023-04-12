@@ -11,3 +11,13 @@ def illumina_instruments(uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWor
             results.append(result)
         uow.session.expunge_all()
     return results
+
+
+def nanopore_instruments(uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork):
+    results = []
+    with uow:
+        for result in uow.repo.list():
+            results.append(result)
+        uow.session.expunge_all()
+    return results
+
