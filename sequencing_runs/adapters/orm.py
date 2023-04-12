@@ -147,6 +147,9 @@ def start_mappers():
 
     illumina_sequencing_runs_mapper = mapper_registry.map_imperatively(
         model.IlluminaSequencingRun, illumina_sequencing_runs,
+        properties={
+            "demultiplexings": relationship(model.IlluminaSequencingRunDemultiplexing, backref="sequencing_run"),
+        }
     )
 
     illumina_sequencing_run_demultiplexings_mapper = mapper_registry.map_imperatively(

@@ -114,6 +114,22 @@ class NanoporeInstrument(Entity):
         return json_entity
 
 
+class IlluminaSequencingRunDemultiplexing(Entity):
+    """
+    """
+
+    def __init__(
+            self,
+            sequencing_run_id: str,
+            demultiplexing_id: int,
+    ):
+        self.sequencing_run_id = sequencing_run_id
+        self.demultiplexing_id = demultiplexing_id
+
+    def __repr__(self):
+        return f"<IlluminaSequencingRunDemultiplexing {self.sequencing_run_id}:{self.demultiplexing_id}>"
+
+
 class IlluminaSequencingRun(Entity):
     """
     """
@@ -134,6 +150,7 @@ class IlluminaSequencingRun(Entity):
             num_reads: Optional[int]=None,
             num_reads_passed_filter: Optional[int]=None,
             yield_gigabases: Optional[float]=None,
+            demultiplexings: Optional[list[IlluminaSequencingRunDemultiplexing]]=None,
             **kwargs,
     ):
         percent_reads_passed_filter = 0.0
@@ -161,6 +178,7 @@ class IlluminaSequencingRun(Entity):
         self.num_reads_passed_filter = num_reads_passed_filter
         self.percent_reads_passed_filter = percent_reads_passed_filter
         self.yield_gigabases = yield_gigabases
+        self.demultiplexings = demultiplexings
 
     def __repr__(self):
         return f"<IlluminaSequencingRun {self.sequencing_run_id}>"
@@ -189,20 +207,6 @@ class IlluminaSequencingRun(Entity):
         return run_date
 
 
-class IlluminaSequencingRunDemultiplexing(Entity):
-    """
-    """
-
-    def __init__(
-            self,
-            sequencing_run_id: str,
-            demultiplexing_num: int,
-    ):
-        self.sequencing_run_id = sequencing_run_id
-        self.demultiplexing_num = demultiplexing_num
-
-    def __repr__(self):
-        return f"<IlluminaSequencingRunDemultiplexing {self.sequencing_run_id}:{self.demultiplexing_num}>"
 
 
 class IlluminaSequencedLibrary(Entity):

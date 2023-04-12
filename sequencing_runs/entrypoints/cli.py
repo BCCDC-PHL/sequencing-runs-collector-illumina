@@ -71,11 +71,64 @@ def get_nanopore_instrument_id(sequencing_run_dir_path):
 
     return instrument_id
 
+def miseq_run_dir_is_new_structure(run_dir):
+    """
+    """
+    is_new_structure = False
+    includes_alignment_subdirs = False
+    run_dir_contents = os.listdir(run_dir)
+    for content in run_dir_contents:
+        if content.startswith('Alignment_'):
+            includes_alignment_subdirs = True
+
+    if includes_alignment_subdirs:
+        is_new_structure = True
+
+    return is_new_structure
+    
+    
+
+def collect_illumina_demultiplexings(run_dir):
+    """
+    """
+    demultiplexings = []
+    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
+    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+    run_id = os.path.basename(run_dir.rstrip('/'))
+    if re.match(miseq_run_id_regex, run_id):
+        if miseq_run_dir_is_new_structure(run_dir):
+            for alignment_dir in glob.glob(os.path.join(run_dir, 'Alignment_*')):
+                alignment_dir_name = os.path.basename(alignment_dir)
+                demultiplexing_id = alignment_dir_name.split('_')[1]
+                demultiplexing = {
+                    'sequencing_run_id': run_id,
+                    'demultiplexing_id': demultiplexing_id,
+                }
+                demultiplexings.append(demultiplexing)
+        else:
+            demultiplexing = {
+                'sequencing_run_id': run_id,
+                'demultiplexing_id': "1",
+            }
+            demultiplexings.append(demultiplexing)
+    elif re.match(nextseq_run_id_regex, run_id):
+        demultiplexing_ids = os.listdir(os.path.join(run_dir, 'Analysis'))
+        for demultiplexing_id in demultiplexing_ids:
+            demultiplexing = {
+                'sequencing_run_id': run_id,
+                'demultiplexing_id': demultiplexing_id
+            }
+            demultiplexings.append(demultiplexing)
+        
+    return demultiplexings
+    
 
 def collect_illumina_sequencing_run_info(run_dir):
     """
     """
-    run_info = {}
+    run_info = {
+        'demultiplexings': []
+    }
     run_id = os.path.basename(run_dir.rstrip('/'))
     run_id_split = run_id.split('_')
     run_info['sequencing_run_id'] = run_id
@@ -83,6 +136,8 @@ def collect_illumina_sequencing_run_info(run_dir):
     run_info['flowcell_id'] = run_id_split[-1]
     interop_summary = interop.summary_nonindex(run_dir)
     run_info.update(interop_summary)
+    demultiplexings = collect_illumina_demultiplexings(run_dir)
+    run_info['demultiplexings'] = demultiplexings
 
     return run_info
 
@@ -189,6 +244,8 @@ def load_run(args):
     if instrument_info['type'] == "ILLUMINA":
         load_sequencing_run_uow = unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork()
         sequencing_run_info = collect_illumina_sequencing_run_info(args.run_dir)
+        for idx, demultiplexing in enumerate(sequencing_run_info['demultiplexings']):
+            sequencing_run_info['demultiplexings'][idx] = model.IlluminaSequencingRunDemultiplexing(**sequencing_run_info['demultiplexings'][idx])
         sequencing_run = model.IlluminaSequencingRun(**sequencing_run_info)
         services.add_illumina_sequencing_run(
             sequencing_run,
