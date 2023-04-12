@@ -48,8 +48,21 @@ class IlluminaInstrument(Entity):
     def __hash__(self):
         return hash(self.instrument_id)
 
+    def to_dict(self):
+        instrument_dict = {
+            'instrument_id': self.instrument_id,
+            'model': self.model,
+            'type': self.type,
+            'status': self.status,
+            'timestamp_status_updated': self.timestamp_status_updated,
+        }
+        return instrument_dict
+
     def to_json(self, indent):
-        json_entity = json.dumps(self.__dict__, indent=indent)
+        instrument_dict = self.to_dict()
+        if 'timestamp_status_updated' in instrument_dict:
+            instrument_dict['timestamp_status_updated'] = str(instrument_dict['timestamp_status_updated'])
+        json_entity = json.dumps(instrument_dict, indent=indent)
 
         return json_entity
 
@@ -84,6 +97,16 @@ class NanoporeInstrument(Entity):
 
     def __hash__(self):
         return hash(self.instrument_id)
+
+    def to_dict(self):
+        instrument_dict = {
+            'instrument_id': self.instrument_id,
+            'model': self.model,
+            'type': self.type,
+            'status': self.status,
+            'timestamp_status_updated': self.timestamp_status_updated,
+        }
+        return instrument_dict
 
     def to_json(self, indent):
         json_entity = json.dumps(self.__dict__, indent=indent)

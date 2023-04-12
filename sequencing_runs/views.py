@@ -1,14 +1,13 @@
+from sqlalchemy import select
+
+from sequencing_runs.domain import model
 from sequencing_runs.service_layer import unit_of_work
 
 
-def instruments(uow: unit_of_work.SqlAlchemyUnitOfWork):
+def illumina_instruments(uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWork):
+    results = []
     with uow:
-        results = uow.session.execute(
-            """
-            SELECT instrument_id, type, model, status, timestamp_status_updated
-            FROM instruments_illumina
-            """
-        )
-        
-        
+        for result in uow.repo.list():
+            results.append(result)
+        uow.session.expunge_all()
     return results

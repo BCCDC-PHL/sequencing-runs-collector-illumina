@@ -1,5 +1,6 @@
 
 import sequencing_runs.domain.model as model
+import sequencing_runs.views as views
 
 from sequencing_runs.adapters.repository import IlluminaInstrumentRepository
 from sequencing_runs.adapters.repository import NanoporeInstrumentRepository
@@ -10,7 +11,10 @@ from sequencing_runs.service_layer.unit_of_work import UnitOfWork
 def get_illumina_instruments(uow: UnitOfWork) -> list[model.IlluminaInstrument]:
     """
     """
-    instruments = uow.repo.list()
+    instruments = []
+    with uow:
+        for instrument in uow.repo.list():
+            instruments.append(instrument) 
     
     return instruments
 

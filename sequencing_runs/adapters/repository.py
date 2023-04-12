@@ -130,7 +130,7 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
         return sequencing_run
 
     def list(self) -> list[model.IlluminaSequencingRun]:
-        sequencing_runs = self.session.query(model.IlluminaSequencingRun).all()
+        sequencing_runs = list[self.session.query(model.IlluminaSequencingRun).all()]
         return sequencing_runs
 
 
