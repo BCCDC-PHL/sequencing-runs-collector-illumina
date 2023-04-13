@@ -224,6 +224,7 @@ class IlluminaSequencingRun(Entity):
     def to_dict(self):
         sequencing_run_dict = {
             'sequencing_run_id': self.sequencing_run_id,
+            'instrument_id': self.instrument_id,
             'flowcell_id': self.flowcell_id,
             'run_date': self.run_date,
             'experiment_name': self.experiment_name,
@@ -360,7 +361,7 @@ class NanoporeSequencingRun(Entity):
     def to_dict(self):
         sequencing_run_dict = {
             'sequencing_run_id': self.sequencing_run_id,
-            'instrument_id': self.instrument.instrument_id,
+            'instrument_id': self.instrument_id,
             'flowcell_id': self.flowcell_id,
             'flowcell_product_code': self.flowcell_product_code,
             'run_date': self.run_date,
