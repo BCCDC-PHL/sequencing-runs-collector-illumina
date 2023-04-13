@@ -9,7 +9,7 @@ import re
 
 import pytz
 
-from sequencing_runs.parsers import generate_fastq_run_statistics
+from sequencing_runs.parsers import generate_fastq_run_statistics, run_parameters
 from sequencing_runs.parsers import interop
 from sequencing_runs.parsers import rta_configuration
 from sequencing_runs.parsers import demultiplex_stats
@@ -103,13 +103,14 @@ def find_illumina_samplesheet(run_dir, demultiplexing_id):
     run_id = os.path.basename(run_dir.rstrip('/'))
     if re.match(MISEQ_RUN_ID_REGEX, run_id):
         if miseq_run_dir_is_new_structure(run_dir):
-            alignment_subdir = os.path.join(run_dir, 'Alignment_' + demultiplexing_id)
+            alignment_subdir_name = 'Alignment_' + demultiplexing_id
+            alignment_subdir =os.path.join(run_dir, alignment_subdir_name)
             alignment_subdir_timestamp_subdirs = os.listdir(alignment_subdir)
             if len(alignment_subdir_timestamp_subdirs) > 0:
                 # Not sure if there are ever multiple timestamp subdirs per alignment subdir
                 # We arbitrarily take the last one.
                 alignment_subdir_timestamp_subdir = alignment_subdir_timestamp_subdirs[-1]
-                samplesheet_path = os.path.join(alignment_subdir_timestamp_subdir, 'SampleSheetUsed.csv')
+                samplesheet_path = os.path.join(alignment_subdir, alignment_subdir_timestamp_subdir, 'SampleSheetUsed.csv')
         else:
             
             rta_config_path = os.path.join(run_dir, 'Data', 'Intensities', 'RTAConfiguration.xml')
@@ -153,14 +154,15 @@ def collect_illumina_sequenced_libraries(run_dir, demultiplexing_id):
         if instrument_model == 'MISEQ':
             if miseq_run_dir_is_new_structure(run_dir):
                 # MiSeq run with new dir structure
-                alignment_dir = os.path.join(run_dir, 'Alignment_', demultiplexing_id)
-                alignment_timestamp_subdirs = os.listdir(alignment_dir)
+                alignment_subdir_name = 'Alignment_' + demultiplexing_id
+                alignment_subdir = os.path.join(run_dir, alignment_subdir_name)
+                alignment_timestamp_subdirs = os.listdir(alignment_subdir)
                 generate_fastq_run_stats = {}
                 if len(alignment_timestamp_subdirs) > 0:
                     # Not sure if there are ever multiple subdirs here.
                     # Arbitrarily take the last one.
                     alignment_timestamp_subdir = alignment_timestamp_subdirs[-1]
-                    generate_fastq_run_statistics_path = os.path.join(alignment_dir, alignment_timestamp_subdir, 'GenerateFASTQRunStatistics.xml')
+                    generate_fastq_run_statistics_path = os.path.join(alignment_subdir, alignment_timestamp_subdir, 'GenerateFASTQRunStatistics.xml')
                     if os.path.exists(generate_fastq_run_statistics_path):
                         generate_fastq_run_stats = generate_fastq_run_statistics.parse_generate_fastq_run_statistics(generate_fastq_run_statistics_path)
                 if 'sample_stats' in generate_fastq_run_stats:
@@ -267,12 +269,40 @@ def collect_illumina_sequencing_run_info(run_dir):
         'demultiplexings': []
     }
     run_id = os.path.basename(run_dir.rstrip('/'))
+    instrument_model = None
+    if re.match(MISEQ_RUN_ID_REGEX, run_id):
+        instrument_model = "MISEQ"
+    elif re.match(NEXTSEQ_RUN_ID_REGEX, run_id):
+        instrument_model = "NEXTSEQ"
     run_id_split = run_id.split('_')
     run_info['sequencing_run_id'] = run_id
     run_info['instrument_id'] = run_id_split[1]
     run_info['flowcell_id'] = run_id_split[-1]
     interop_summary = interop.summary_nonindex(run_dir)
     run_info.update(interop_summary)
+    run_parameters_path = os.path.join(run_dir, 'RunParameters.xml')
+    if os.path.exists(run_parameters_path):
+        run_params = run_parameters.parse_run_parameters(run_parameters_path)
+        if 'experiment_name' in run_params:
+            run_info['experiment_name'] = run_params.get('experiment_name', None)
+        if instrument_model == 'NEXTSEQ' and 'completed_cycles' in run_params:
+            completed_cycles = run_params['completed_cycles']
+            if completed_cycles is not None:
+                num_cycles_r1 = completed_cycles.get('read_1', None)
+                num_cycles_r2 = completed_cycles.get('read_2', None)
+                run_info['num_cycles_r1'] = num_cycles_r1
+                run_info['num_cycles_r2'] = num_cycles_r2
+        if instrument_model == 'MISEQ' and 'reads' in run_params:
+            if run_params['reads'] is not None:
+                for read in run_params['reads']:
+                    if 'is_indexed_read' in read and read['is_indexed_read']:
+                        pass
+                    elif 'is_indexed_read' in read and not read['is_indexed_read']:
+                        if 'number' in read and read['number'] == 1:
+                            run_info['num_cycles_r1'] = read.get('num_cycles', None)
+                        elif 'number' in read and read['number'] == 4:
+                            run_info['num_cycles_r2'] = read.get('num_cycles', None)
+            
     demultiplexings = collect_illumina_demultiplexings(run_dir)
     run_info['demultiplexings'] = demultiplexings
 

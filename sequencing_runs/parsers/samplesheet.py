@@ -61,6 +61,27 @@ def _parse_reads_section_miseq_v1(samplesheet_path: str):
 
     return reads
 
+def _parse_reads_section_miseq_v2(samplesheet_path: str):
+    """
+    """
+    reads_lines = []
+    reads = []
+    with open(samplesheet_path, 'r') as f:
+        for line in f:
+            if line.strip().startswith('[Reads]'):
+                break
+        for line in f:
+            if line.strip().startswith('[Settings]'):
+                break
+            reads_lines.append(line.strip().rstrip(','))
+
+    for line in reads_lines:
+        if line != "":
+            read_len = int(line)
+            reads.append(read_len)
+
+    return reads
+
 
 def _parse_settings_section_miseq_v1(samplesheet_path: str):
     """
@@ -135,6 +156,27 @@ def _parse_samplesheet_miseq_v1(samplesheet_path: str):
     samplesheet['header'] = _parse_header_section_miseq_v1(samplesheet_path)
     samplesheet['reads'] = _parse_reads_section_miseq_v1(samplesheet_path)
     samplesheet['settings'] = _parse_settings_section_miseq_v1(samplesheet_path)
+    samplesheet['data'] = _parse_data_section_miseq_v1(samplesheet_path)
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "resources", "samplesheet_miseq_v1.schema.json")
+    schema = None
+    with open(schema_path, 'r') as f:
+        schema = json.load(f)
+
+    try:
+        jsonschema.validate(instance=samplesheet, schema=schema)
+    except jsonschema.ValidationError as e:
+        logging.error({"event_type": "samplesheet_validation_failed", "samplesheet_path": samplesheet_path, "schema_path": schema_path})
+
+    return samplesheet
+
+
+def _parse_samplesheet_miseq_v2(samplesheet_path: str):
+    """
+    """
+    samplesheet = {}
+    samplesheet['header'] = _parse_header_section_miseq_v1(samplesheet_path)
+    samplesheet['reads'] = _parse_reads_section_miseq_v2(samplesheet_path)
+    samplesheet['settings'] = _parse_settings_section_miseq_v2(samplesheet_path)
     samplesheet['data'] = _parse_data_section_miseq_v1(samplesheet_path)
     schema_path = os.path.join(os.path.dirname(__file__), "..", "resources", "samplesheet_miseq_v1.schema.json")
     schema = None

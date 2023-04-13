@@ -240,10 +240,6 @@ class IlluminaSequencingRun(Entity):
         return run_date
 
 
-
-
-
-
 class NanoporeAcquisitionRun(Entity):
     """
     """
