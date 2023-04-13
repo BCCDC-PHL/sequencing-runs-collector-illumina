@@ -113,17 +113,9 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
     def add(self, sequencing_run):
         """
         """
-        existing_instrument = self.session.query(model.IlluminaInstrument).filter_by(
-            instrument_id=sequencing_run.instrument_id
-        ).one_or_none()
-
-        if existing_instrument is None:
-            raise ValueError("No instrument:", sequencing_run.instrument_id)
-        else:
-            sequencing_run.instrument_id = existing_instrument.id
-            existing_sequencing_run = self.get(sequencing_run.sequencing_run_id)
-            if existing_sequencing_run is None:
-                self.session.add(sequencing_run)
+        existing_sequencing_run = self.get(sequencing_run.sequencing_run_id)
+        if existing_sequencing_run is None:
+            self.session.add(sequencing_run)
 
     def get(self, sequencing_run_id: str) -> Optional[model.IlluminaSequencingRun]:
         """
@@ -146,20 +138,12 @@ class SqlAlchemyNanoporeSequencingRunRepository(Repository):
     def __init__(self, session):
         self.session = session
 
-    def add(self, sequencing_run):
+    def add(self, sequencing_run: model.NanoporeSequencingRun):
         """
         """
-        existing_instrument = self.session.query(model.NanoporeInstrument).filter_by(
-            instrument_id=sequencing_run.instrument_id
-        ).one_or_none()
-
-        if existing_instrument is None:
-            raise ValueError("No instrument:", sequencing_run.instrument_id)
-        else:
-            sequencing_run.instrument_id = existing_instrument.id
-            existing_sequencing_run = self.get(sequencing_run.sequencing_run_id)
-            if existing_sequencing_run is None:
-                self.session.add(sequencing_run)
+        existing_sequencing_run = self.get(sequencing_run.sequencing_run_id)
+        if existing_sequencing_run is None:
+            self.session.add(sequencing_run)
 
     def get(self, sequencing_run_id: str) -> Optional[model.NanoporeSequencingRun]:
         """

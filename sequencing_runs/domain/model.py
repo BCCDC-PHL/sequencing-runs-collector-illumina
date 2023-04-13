@@ -262,6 +262,16 @@ class IlluminaSequencingRun(Entity):
 
         return run_date
 
+class NanoporeSequencedLibrary(Entity):
+    """
+    """
+    def __init__(
+            self,
+            library_id: str,
+            sequencing_run_id: str,
+            
+    ):
+        pass
 
 class NanoporeAcquisitionRun(Entity):
     """
@@ -350,7 +360,7 @@ class NanoporeSequencingRun(Entity):
     def to_dict(self):
         sequencing_run_dict = {
             'sequencing_run_id': self.sequencing_run_id,
-            'instrument_id': self.instrument_id,
+            'instrument_id': self.instrument.instrument_id,
             'flowcell_id': self.flowcell_id,
             'flowcell_product_code': self.flowcell_product_code,
             'run_date': self.run_date,
