@@ -44,7 +44,7 @@ def get_instruments():
 
 
 @app.route("/sequencing-runs", methods=["GET"])
-def add_sequencing_runs():
+def get_sequencing_runs():
     response = []
 
     illumina_sequencing_runs = views.illumina_sequencing_runs(unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork())
