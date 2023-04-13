@@ -22,5 +22,5 @@ def parse_runinfo_nextseq_v1(runinfo_path):
 
             reads.append(r)
         runinfo['reads'] = reads
-    exit()
+
     return runinfo

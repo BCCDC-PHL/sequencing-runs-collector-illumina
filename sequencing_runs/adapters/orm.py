@@ -84,19 +84,20 @@ illumina_sequencing_run_demultiplexings = Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("sequencing_run_id", ForeignKey("sequencing_run_illumina.id")),
-    Column("demultiplexing_id", Integer),
+    Column("demultiplexing_id", String),
+    Column("samplesheet_path", String),
 )
 
 illumina_sequenced_libraries = Table(
     "sequenced_library_illumina",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("sequencing_run_id", ForeignKey("sequencing_run_illumina.id")),
     Column("demultiplexing_id", ForeignKey("sequencing_run_illumina_demultiplexing.id")),
+    Column("library_id", String),
     Column("samplesheet_project_id", String),
+    Column("index1", String),
+    Column("index2", String),
     Column("num_reads", Integer),
-    Column("num_bases", Integer),
-    Column("q30_rate", Float),
 )
 
 nanopore_sequencing_runs = Table(
@@ -154,10 +155,16 @@ def start_mappers():
 
     illumina_sequencing_run_demultiplexings_mapper = mapper_registry.map_imperatively(
         model.IlluminaSequencingRunDemultiplexing, illumina_sequencing_run_demultiplexings,
+        properties={
+            "sequenced_libraries": relationship(model.IlluminaSequencedLibrary, backref="demultiplexing"),
+        }
     )
 
     illumina_sequenced_libraries_mapper = mapper_registry.map_imperatively(
         model.IlluminaSequencedLibrary, illumina_sequenced_libraries,
+        exclude_properties=[
+            'sequencing_run_id',
+        ]
     )
 
     nanopore_instruments_mapper = mapper_registry.map_imperatively(

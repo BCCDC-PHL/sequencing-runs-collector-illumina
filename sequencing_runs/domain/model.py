@@ -114,6 +114,28 @@ class NanoporeInstrument(Entity):
         return json_entity
 
 
+class IlluminaSequencedLibrary(Entity):
+    """
+    """
+    def __init__(
+            self,
+            library_id: str,
+            sequencing_run_id: str,
+            demultiplexing_id: str,
+            samplesheet_project_id: Optional[str]=None,
+            index1: Optional[str]=None,
+            index2: Optional[str]=None,
+            num_reads: Optional[int]=None,
+    ):
+        self.library_id = library_id
+        self.sequencing_run_id = sequencing_run_id
+        self.demultiplexing_id = demultiplexing_id
+        self.samplesheet_project_id = samplesheet_project_id
+        self.index1 = index1
+        self.index2 = index2
+        self.num_reads = num_reads
+
+    
 class IlluminaSequencingRunDemultiplexing(Entity):
     """
     """
@@ -121,10 +143,15 @@ class IlluminaSequencingRunDemultiplexing(Entity):
     def __init__(
             self,
             sequencing_run_id: str,
-            demultiplexing_id: int,
+            demultiplexing_id: str,
+            samplesheet_path: Optional[str]=None,
+            sequenced_libraries: Optional[list[IlluminaSequencedLibrary]]=None,
+            **kwargs,
     ):
         self.sequencing_run_id = sequencing_run_id
         self.demultiplexing_id = demultiplexing_id
+        self.samplesheet_path = samplesheet_path
+        self.sequenced_libraries = sequenced_libraries
 
     def __repr__(self):
         return f"<IlluminaSequencingRunDemultiplexing {self.sequencing_run_id}:{self.demultiplexing_id}>"
@@ -209,26 +236,6 @@ class IlluminaSequencingRun(Entity):
 
 
 
-class IlluminaSequencedLibrary(Entity):
-    """
-    """
-    def __init__(
-            self,
-            library_id: str,
-            sequencing_run_id: str,
-            demultiplexing_id: str,
-            samplesheet_project_id: Optional[str]=None,
-            num_reads: Optional[int]=None,
-            num_bases: Optional[int]=None,
-            q30_rate: Optional[float]=None,
-    ):
-        self.library_id = library_id
-        self.sequencing_run_id = sequencing_run_id
-        self.demultiplexing_id = demultiplexing_id
-        self.samplesheet_project_id = samplesheet_project_id
-        self.num_reads = num_reads
-        self.num_bases = num_bases
-        self.q30_rate = q30_rate
 
 
 class NanoporeAcquisitionRun(Entity):

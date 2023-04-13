@@ -5,9 +5,11 @@ import logging
 import os
 import re
 
+from typing import Optional
+
 import jsonschema
 
-import sequencing_runs_db.util as util
+import sequencing_runs.util as util
 
 
 def _parse_header_section_miseq_v1(samplesheet_path: str):
@@ -438,7 +440,7 @@ def parse_samplesheet_nextseq(samplesheet_path: str):
     return samplesheet
 
 
-def parse_samplesheet(samplesheet_path: str, instrument_type: str) -> dict[str, object]:
+def parse_samplesheet(samplesheet_path: str, instrument_model: str) -> Optional[dict[str, object]]:
     """
     :param samplesheet_path:
     :type samplesheet_path: str
@@ -446,9 +448,63 @@ def parse_samplesheet(samplesheet_path: str, instrument_type: str) -> dict[str, 
     :type instrument_type: str
     """
     samplesheet = None
-    if instrument_type == 'miseq':
+    if instrument_model == 'MISEQ':
         samplesheet = parse_samplesheet_miseq(samplesheet_path)
-    elif instrument_type == 'nextseq':
+    elif instrument_model == 'NEXTSEQ':
         samplesheet = parse_samplesheet_nextseq(samplesheet_path)
 
     return samplesheet
+
+
+def samplesheet_to_sequenced_libraries(parsed_samplesheet, instrument_model):
+    """
+    """
+    sequenced_libraries = []
+    if instrument_model == 'MISEQ':
+        if 'data' in parsed_samplesheet:
+            for data_record in parsed_samplesheet['data']:
+                sequenced_library = {
+                    'library_id': None,
+                    'samplesheet_project_id': None,
+                    'index1': None,
+                    'index2': None,
+                }
+                # The library ID that we want is sometimes under 'sample_id' and sometimes under 'sample_name'
+                # The instrument will automatically label samples using an ID like 'S1', 'S2', etc in the other field.
+                if re.match("S\d+$", data_record['sample_id']):
+                    sequenced_library['library_id'] = data_record['sample_name']
+                else:
+                    sequenced_library['library_id'] = data_record['sample_id']
+                sequenced_library['samplesheet_project_id'] = data_record.get('sample_project', None)
+                sequenced_library['index1'] = data_record.get('index', None)
+                sequenced_library['index2'] = data_record.get('index2', None)
+                sequenced_libraries.append(sequenced_library)
+                
+    elif instrument_model == 'NEXTSEQ':
+        sequenced_libraries_by_library_id = {}
+        if 'bclconvert_data' in parsed_samplesheet:
+            for bclconvert_record in parsed_samplesheet['bclconvert_data']:
+                sequenced_library = {
+                    'library_id': None,
+                    'samplesheet_project_id': None,
+                    'index1': None,
+                    'index2': None,
+                }
+                sequenced_library['library_id'] = bclconvert_record['sample_id']
+                sequenced_library['index1'] = bclconvert_record['index']
+                sequenced_library['index2'] = bclconvert_record['index2']
+                sequenced_libraries_by_library_id[sequenced_library['library_id']] = sequenced_library
+        if 'cloud_data' in parsed_samplesheet:
+            for cloud_data_record in parsed_samplesheet['cloud_data']:
+                library_id = cloud_data_record.get('sample_id', None)
+                samplesheet_project_id = cloud_data_record.get('project_name', None)
+                if library_id in sequenced_libraries_by_library_id:
+                    sequenced_libraries_by_library_id[library_id]['samplesheet_project_id'] = samplesheet_project_id
+
+        for library_id, sequenced_library in sequenced_libraries_by_library_id.items():
+            sequenced_libraries.append(sequenced_library)
+                
+
+    return sequenced_libraries
+        
+    
