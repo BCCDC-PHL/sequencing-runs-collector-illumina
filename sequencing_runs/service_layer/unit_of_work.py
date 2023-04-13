@@ -91,8 +91,6 @@ class SqlAlchemyNanoporeInstrumentUnitOfWork(UnitOfWork):
     def rollback(self):
         self.session.rollback()
 
-        
-
 
 class SqlAlchemyIlluminaSequencingRunUnitOfWork(UnitOfWork):
     def __init__(self, session_factory=DEFAULT_SESSION_FACTORY):

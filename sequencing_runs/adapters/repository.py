@@ -111,6 +111,8 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
         self.session = session
 
     def add(self, sequencing_run):
+        """
+        """
         existing_instrument = self.session.query(model.IlluminaInstrument).filter_by(
             instrument_id=sequencing_run.instrument_id
         ).one_or_none()
@@ -124,13 +126,17 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
                 self.session.add(sequencing_run)
 
     def get(self, sequencing_run_id: str) -> Optional[model.IlluminaSequencingRun]:
+        """
+        """
         sequencing_run = self.session.query(model.IlluminaSequencingRun).filter_by(
             sequencing_run_id=sequencing_run_id
         ).one_or_none()
         return sequencing_run
 
     def list(self) -> list[model.IlluminaSequencingRun]:
-        sequencing_runs = list[self.session.query(model.IlluminaSequencingRun).all()]
+        """
+        """
+        sequencing_runs = self.session.query(model.IlluminaSequencingRun).all()
         return sequencing_runs
 
 
@@ -141,6 +147,8 @@ class SqlAlchemyNanoporeSequencingRunRepository(Repository):
         self.session = session
 
     def add(self, sequencing_run):
+        """
+        """
         existing_instrument = self.session.query(model.NanoporeInstrument).filter_by(
             instrument_id=sequencing_run.instrument_id
         ).one_or_none()
@@ -154,11 +162,15 @@ class SqlAlchemyNanoporeSequencingRunRepository(Repository):
                 self.session.add(sequencing_run)
 
     def get(self, sequencing_run_id: str) -> Optional[model.NanoporeSequencingRun]:
+        """
+        """
         sequencing_run = self.session.query(model.NanoporeSequencingRun).filter_by(
             sequencing_run_id=sequencing_run_id
         ).one_or_none()
         return sequencing_run
 
     def list(self) -> list[model.NanoporeSequencingRun]:
+        """
+        """
         sequencing_runs = self.session.query(model.NanoporeSequencingRun).all()
         return sequencing_runs

@@ -21,3 +21,20 @@ def nanopore_instruments(uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWor
         uow.session.expunge_all()
     return results
 
+def illumina_sequencing_runs(uow: unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork):
+    results = []
+    with uow:
+        for result in uow.repo.list():
+            print(result)
+            results.append(result)
+        uow.session.expunge_all()
+    return results
+
+def nanopore_sequencing_runs(uow: unit_of_work.SqlAlchemyNanoporeSequencingRunUnitOfWork):
+    results = []
+    with uow:
+        for result in uow.repo.list():
+            results.append(result)
+        uow.session.expunge_all()
+    return results
+

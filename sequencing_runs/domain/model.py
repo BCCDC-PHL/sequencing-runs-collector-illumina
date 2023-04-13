@@ -221,6 +221,29 @@ class IlluminaSequencingRun(Entity):
             return False
         return other.sequencing_run_id == self.sequencing_run_id
 
+    def to_dict(self):
+        sequencing_run_dict = {
+            'sequencing_run_id': self.sequencing_run_id,
+            'flowcell_id': self.flowcell_id,
+            'run_date': self.run_date,
+            'experiment_name': self.experiment_name,
+            'num_cycles_r1': self.num_cycles_r1,
+            'num_cycles_r2': self.num_cycles_r2,
+            'cluster_count': self.cluster_count,
+            'cluster_count_passed_filter': self.cluster_count_passed_filter,
+            'percent_clusters_passed_filter': self.percent_clusters_passed_filter,
+            'error_rate': self.error_rate,
+            'first_cycle_intensity': self.first_cycle_intensity,
+            'percent_aligned': self.percent_aligned,
+            'q30_percent': self.q30_percent,
+            'projected_yield_gigabases': self.projected_yield_gigabases,
+            'num_reads': self.num_reads,
+            'num_reads_passed_filter': self.num_reads_passed_filter,
+            'percent_reads_passed_filter': self.percent_reads_passed_filter,
+            'yield_gigabases': self.yield_gigabases,
+        }
+        return sequencing_run_dict
+    
     def to_json(self, indent):
         json_entity = json.dumps(self.__dict__, indent=indent)
 

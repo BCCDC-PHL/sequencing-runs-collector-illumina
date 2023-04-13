@@ -71,6 +71,7 @@ illumina_sequencing_runs = Table(
     Column("num_cycles_r2", Integer),
     Column("cluster_count", Integer),
     Column("cluster_count_passed_filter", Integer),
+    Column("percent_clusters_passed_filter", Float),
     Column("error_rate", Float),
     Column("first_cycle_intensity", Float),
     Column("percent_aligned", Float),
