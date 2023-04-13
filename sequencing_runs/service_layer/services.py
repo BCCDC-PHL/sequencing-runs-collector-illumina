@@ -19,10 +19,14 @@ def get_illumina_instruments(uow: UnitOfWork) -> list[model.IlluminaInstrument]:
     return instruments
 
 
-def get_illumina_instrument_by_id(repo: IlluminaInstrumentRepository, instrument_id: str):
+def update_instrument_status(instrument_id: str, status: str, uow: UnitOfWork):
     """
     """
-    instrument = repo.get(instrument_id)
+    with uow:
+        instrument = uow.repo.get(instrument_id)
+        if instrument is not None:
+            instrument.status = status
+        uow.commit()
 
     return instrument
 

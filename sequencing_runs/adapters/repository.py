@@ -72,7 +72,10 @@ class SqlAlchemyIlluminaInstrumentRepository(Repository):
             self.session.add(instrument)
 
     def get(self, instrument_id: str) -> Optional[model.IlluminaInstrument]:
-        instrument = self.session.query(model.IlluminaInstrument).filter_by(instrument_id=instrument_id).one_or_none()
+        instrument = self.session.query(model.IlluminaInstrument).filter_by(
+            instrument_id=instrument_id
+        ).one_or_none()
+
         return instrument
 
     def list(self) -> list[model.IlluminaInstrument]:

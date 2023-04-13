@@ -12,6 +12,13 @@ def illumina_instruments(uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWor
         uow.session.expunge_all()
     return results
 
+def illumina_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWork):
+    result = None
+    with uow:
+        result = uow.repo.get(instrument_id)
+        uow.session.expunge_all()
+    return result
+
 
 def nanopore_instruments(uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork):
     results = []
@@ -20,6 +27,14 @@ def nanopore_instruments(uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWor
             results.append(result)
         uow.session.expunge_all()
     return results
+
+def nanopore_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork):
+    result = None
+    with uow:
+      result = uow.repo.get(instrument_id)
+      uow.session.expunge_all()
+    return result
+
 
 def illumina_sequencing_runs(uow: unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork):
     results = []
