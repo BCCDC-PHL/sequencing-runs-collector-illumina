@@ -9,7 +9,7 @@ class Repository(Protocol):
         """
         """
 
-    def get(self, id: str) -> model.Entity:
+    def get(self, id: str) -> Optional[model.Entity]:
         """
         """
 
@@ -19,31 +19,32 @@ class Repository(Protocol):
 
 
 class IlluminaInstrumentRepository(Repository):
-    @abc.abstractmethod
+    """
+    """
     def add(self, instrument: model.IlluminaInstrument):
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def get(self, id: str) -> model.IlluminaInstrument:
+
+    def get(self, id: str) -> Optional[model.IlluminaInstrument]:
         raise NotImplementedError
 
-    @abc.abstractmethod
     def list(self) -> list[model.IlluminaInstrument]:
         raise NotImplementedError
 
 
 class NanoporeInstrumentRepository(Repository):
-
+    """
+    """
     def add(self, instrument: model.NanoporeInstrument):
         raise NotImplementedError
 
-    def get(self, id: str) -> model.NanoporeInstrument:
+    def get(self, id: str) -> Optional[model.NanoporeInstrument]:
         raise NotImplementedError
 
     def list(self) -> list[model.NanoporeInstrument]:
         raise NotImplementedError
 
-    
+
 class SqlAlchemyRepository(Repository):
     """
     """
@@ -66,20 +67,30 @@ class SqlAlchemyIlluminaInstrumentRepository(Repository):
     def __init__(self, session):
         self.session = session
 
-    def add(self, instrument):
+
+    def add(self, instrument: model.IlluminaInstrument):
+        """
+        """
         existing_instrument = self.get(instrument.instrument_id)
         if existing_instrument is None:
             self.session.add(instrument)
 
+
     def get(self, instrument_id: str) -> Optional[model.IlluminaInstrument]:
+        """
+        """
         instrument = self.session.query(model.IlluminaInstrument).filter_by(
             instrument_id=instrument_id
         ).one_or_none()
 
         return instrument
 
+
     def list(self) -> list[model.IlluminaInstrument]:
+        """
+        """
         instruments = self.session.query(model.IlluminaInstrument).all()
+
         return instruments
 
 
@@ -89,19 +100,28 @@ class SqlAlchemyNanoporeInstrumentRepository(Repository):
     def __init__(self, session):
         self.session = session
 
+
     def add(self, instrument: model.NanoporeInstrument):
+        """
+        """
         existing_instrument = self.get(instrument.instrument_id)
         if existing_instrument is None:
             self.session.add(instrument)
 
+
     def get(self, instrument_id: str) -> Optional[model.NanoporeInstrument]:
+        """
+        """
         instrument = self.session.query(model.NanoporeInstrument).filter_by(
             instrument_id=instrument_id
         ).one_or_none()
 
         return instrument
 
+
     def list(self) -> list[model.NanoporeInstrument]:
+        """
+        """
         instruments = self.session.query(model.NanoporeInstrument).all()
 
         return instruments
@@ -113,12 +133,14 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
     def __init__(self, session):
         self.session = session
 
-    def add(self, sequencing_run):
+
+    def add(self, sequencing_run: model.IlluminaSequencingRun):
         """
         """
         existing_sequencing_run = self.get(sequencing_run.sequencing_run_id)
         if existing_sequencing_run is None:
             self.session.add(sequencing_run)
+
 
     def get(self, sequencing_run_id: str) -> Optional[model.IlluminaSequencingRun]:
         """
@@ -126,12 +148,15 @@ class SqlAlchemyIlluminaSequencingRunRepository(Repository):
         sequencing_run = self.session.query(model.IlluminaSequencingRun).filter_by(
             sequencing_run_id=sequencing_run_id
         ).one_or_none()
+
         return sequencing_run
+
 
     def list(self) -> list[model.IlluminaSequencingRun]:
         """
         """
         sequencing_runs = self.session.query(model.IlluminaSequencingRun).all()
+
         return sequencing_runs
 
 
@@ -141,6 +166,7 @@ class SqlAlchemyNanoporeSequencingRunRepository(Repository):
     def __init__(self, session):
         self.session = session
 
+
     def add(self, sequencing_run: model.NanoporeSequencingRun):
         """
         """
@@ -148,16 +174,20 @@ class SqlAlchemyNanoporeSequencingRunRepository(Repository):
         if existing_sequencing_run is None:
             self.session.add(sequencing_run)
 
+
     def get(self, sequencing_run_id: str) -> Optional[model.NanoporeSequencingRun]:
         """
         """
         sequencing_run = self.session.query(model.NanoporeSequencingRun).filter_by(
             sequencing_run_id=sequencing_run_id
         ).one_or_none()
+
         return sequencing_run
+
 
     def list(self) -> list[model.NanoporeSequencingRun]:
         """
         """
         sequencing_runs = self.session.query(model.NanoporeSequencingRun).all()
+
         return sequencing_runs

@@ -1,3 +1,5 @@
+import datetime
+
 from sqlalchemy import MetaData
 from sqlalchemy import Table
 from sqlalchemy import Boolean
@@ -16,6 +18,8 @@ from sequencing_runs.domain import model
 mapper_registry = registry()
 metadata = mapper_registry.metadata
 
+
+
 illumina_instruments = Table(
     "instrument_illumina",
     metadata,
@@ -26,6 +30,7 @@ illumina_instruments = Table(
     Column("status", String),
     Column("timestamp_status_updated", DateTime),
 )
+
 
 illumina_instruments_view = Table(
     "instrument_illumina_view",
@@ -185,4 +190,14 @@ def start_mappers():
     nanopore_acquisition_runs_mapper = mapper_registry.map_imperatively(
         model.NanoporeAcquisitionRun, nanopore_acquisition_runs,
     )
-    
+
+
+def illumina_instrument_status_updated_listener(mapper, connection, target):
+    """
+    Set timestamp_status_updated
+    """
+    target.timestamp_status_updated = datetime.datetime.utcnow()
+
+event.listen(
+    model.IlluminaInstrument, 'before_update', illumina_instrument_status_updated_listener
+)

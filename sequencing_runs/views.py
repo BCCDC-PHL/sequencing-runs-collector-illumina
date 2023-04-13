@@ -1,55 +1,75 @@
-from sqlalchemy import select
+from typing import Optional
 
 from sequencing_runs.domain import model
 from sequencing_runs.service_layer import unit_of_work
 
 
-def illumina_instruments(uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWork):
+def illumina_instruments(uow: unit_of_work.SqlAlchemyUnitOfWork):
+    """
+    """
     results = []
     with uow:
-        for result in uow.repo.list():
-            results.append(result)
+        results = uow.session.query(model.IlluminaInstrument).all()
         uow.session.expunge_all()
+
     return results
 
-def illumina_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyIlluminaInstrumentUnitOfWork):
+
+def illumina_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyUnitOfWork) -> Optional[model.IlluminaInstrument]:
+    """
+    """
     result = None
     with uow:
-        result = uow.repo.get(instrument_id)
+        result = uow.session.query(model.IlluminaInstrument).filter_by(
+            instrument_id=instrument_id
+        ).one_or_none()
         uow.session.expunge_all()
+
     return result
 
 
-def nanopore_instruments(uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork):
+def nanopore_instruments(uow: unit_of_work.SqlAlchemyUnitOfWork) -> list[model.NanoporeInstrument]:
+    """
+    """
     results = []
     with uow:
-        for result in uow.repo.list():
-            results.append(result)
+        results = uow.session.query(model.NanoporeInstrument).all()
         uow.session.expunge_all()
+
     return results
 
-def nanopore_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyNanoporeInstrumentUnitOfWork):
+
+def nanopore_instrument_by_id(instrument_id: str, uow: unit_of_work.SqlAlchemyUnitOfWork) -> Optional[model.NanoporeInstrument]:
+    """
+    """
     result = None
     with uow:
-      result = uow.repo.get(instrument_id)
+      result = uow.session.query(model.NanoporeInstrument).filter_by(
+          instrument_id=instrument_id
+      ).one_or_none()
       uow.session.expunge_all()
+
     return result
 
 
-def illumina_sequencing_runs(uow: unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork):
+def illumina_sequencing_runs(uow: unit_of_work.SqlAlchemyUnitOfWork) -> list[model.IlluminaSequencingRun]:
+    """
+    """
     results = []
     with uow:
-        for result in uow.repo.list():
-            print(result)
-            results.append(result)
+        results = uow.session.query(model.IlluminaSequencingRun).all()
         uow.session.expunge_all()
+
     return results
 
-def nanopore_sequencing_runs(uow: unit_of_work.SqlAlchemyNanoporeSequencingRunUnitOfWork):
+
+def nanopore_sequencing_runs(uow: unit_of_work.SqlAlchemyUnitOfWork) -> list[model.NanoporeSequencingRun]:
+    """
+    """
     results = []
     with uow:
-        for result in uow.repo.list():
-            results.append(result)
+        results = uow.session.query(model.NanoporeSequencingRun).all()
         uow.session.expunge_all()
+
     return results
 
