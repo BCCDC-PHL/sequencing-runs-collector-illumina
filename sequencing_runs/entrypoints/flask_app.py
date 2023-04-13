@@ -48,7 +48,12 @@ def add_sequencing_runs():
     response = []
 
     illumina_sequencing_runs = views.illumina_sequencing_runs(unit_of_work.SqlAlchemyIlluminaSequencingRunUnitOfWork())
+    nanopore_sequencing_runs = views.nanopore_sequencing_runs(unit_of_work.SqlAlchemyNanoporeSequencingRunUnitOfWork())
+    
     for sequencing_run in illumina_sequencing_runs:
+        response.append(sequencing_run.to_dict())
+
+    for sequencing_run in nanopore_sequencing_runs:
         response.append(sequencing_run.to_dict())
 
     return jsonify(response)

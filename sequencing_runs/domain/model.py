@@ -347,6 +347,24 @@ class NanoporeSequencingRun(Entity):
             return False
         return other.sequencing_run_id == self.sequencing_run_id
 
+    def to_dict(self):
+        sequencing_run_dict = {
+            'sequencing_run_id': self.sequencing_run_id,
+            'instrument_id': self.instrument_id,
+            'flowcell_id': self.flowcell_id,
+            'flowcell_product_code': self.flowcell_product_code,
+            'run_date': self.run_date,
+            'protocol_id': self.protocol_id,
+            'protocol_run_id': self.protocol_run_id,
+            'timestamp_protocol_run_started': self.timestamp_protocol_run_started,
+            'timestamp_protocol_run_ended': self.timestamp_protocol_run_ended,
+            'num_reads_total': self.num_reads_total,
+            'num_reads_passed_filter': self.num_reads_passed_filter,
+            'yield_gigabases': self.yield_gigabases,
+        }
+
+        return sequencing_run_dict
+    
     def to_json(self, indent):
         json_entity = json.dumps(self.__dict__, indent=indent)
 
