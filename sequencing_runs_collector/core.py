@@ -2,8 +2,10 @@ import json
 import logging
 import os
 import re
+import requests
 
 from typing import Iterable, Optional
+
 
 import sequencing_runs_collector.illumina as illumina
 import sequencing_runs_collector.parsers.samplesheet as samplesheet
@@ -74,6 +76,8 @@ def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]
     run = {}
     miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
     nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+    gridion_run_id_regex = "\d{8}_\d{4}_X[1-5]_[A-Z0-9]+_[a-z0-9]{8}"
+    promethion_run_id_regex = "\d{8}_\d{4}_P2S_[0-9]{5}-\d{1}_[A-Z0-9]+_[a-z0-9]{8}"
     run_parent_dirs = config.get('run_parent_dirs', None)
     if run_parent_dirs is not None:
         for run_parent_dir in run_parent_dirs:
@@ -84,13 +88,21 @@ def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]
                     instrument_type = None
                     instrument_model = None
                     run_id = subdir.name
-                    logging.debug(run_id)
                     if re.match(miseq_run_id_regex, run_id):
                         instrument_type = "ILLUMINA"
                         instrument_model = "MISEQ"
                     elif re.match(nextseq_run_id_regex, run_id):
                         instrument_type = "ILLUMINA"
                         instrument_model = "NEXTSEQ"
+                    elif re.match(gridion_run_id_regex, run_id):
+                        instrument_type = "NANOPORE"
+                        instrument_model = "GRIDION"
+                    elif re.match(promethion_run_id_regex, run_id):
+                        instrument_type = "NANOPORE"
+                        instrument_model = "PROMETHION"
+                    else:
+                        logging.info(json.dumps({'event_type': 'sequencing_run_skipped', 'directory': subdir.path}))
+                        yield None
                     if subdir.is_dir() and instrument_model != None and os.path.exists(os.path.join(subdir.path, "upload_complete.json")):
                         logging.debug(json.dumps({"event_type": "sequencing_run_found", "sequencing_run_id": run_id}))
                         run = {
@@ -123,7 +135,7 @@ def scan(config):
     logging.info(json.dumps({"event_type": "find_and_store_runs_complete", "num_runs_found": num_runs_found}))
 
 
-def load_illumina_run(config, run):
+def collect_illumina_run(config, run):
     """
     """
 
@@ -135,7 +147,6 @@ def load_illumina_run(config, run):
     sequencing_run = {
         'id': run_id,
         'attributes': {},
-        'links':[],
     }
 
     if instrument['instrument_type'] == "ILLUMINA":
@@ -172,6 +183,36 @@ def load_illumina_run(config, run):
             demultiplexing['sequenced_libraries'] = sequenced_libraries
 
         sequencing_run['attributes']['demultiplexings'].append(demultiplexing)
+
+    return sequencing_run
+
+
+def submit_illumina_run(config, run):
+    """
+    """
+    
+    base_url = config.get('api_root', None)
+    api_token = config.get('api_token', None)
+    response = None
+    if base_url is not None and api_token is not None:
+        base_url = base_url.rstrip('/')
+        headers = {
+            'Authorization': "Bearer " + api_token,
+            'Content-Type': 'application/vnd.api+json',
+            'Accept': 'application/vnd.api+json',
+        }
+        url = '/'.join([base_url, 'sequencing-runs', 'illumina'])
+        try:
+            logging.debug(json.dumps(run, indent=2))
+            response = requests.post(url, headers=headers, json={"data": run})
+            exit()
+        except requests.exceptions.ConnectionError as e:
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'error_message': str(e)}))
+    if response is not None:
+        if response.ok:
+            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'status_code': response.status_code, 'reason': response.reason}))
+        else:
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'status_code': response.status_code, 'reason': response.reason}))
 
 
 def load_nanopore_run(config, run):

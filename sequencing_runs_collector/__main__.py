@@ -56,7 +56,15 @@ def main():
                     except json.decoder.JSONDecodeError as e:
                         logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
                     if run['instrument_type'] == 'ILLUMINA':
-                        core.load_illumina_run(config, run)
+                        run_to_submit = core.collect_illumina_run(config, run)
+                        # TODO: further validation before submitting
+                        if run_to_submit is not None:
+                            core.submit_illumina_run(config, run_to_submit)
+                        else:
+                            logging.debug(json.dumps({'event_type': 'skipped_submitting_run', 'run': run}))
+                    elif run['instrument_type'] == 'NANOPORE':
+                        run_to_submit = core.collect_nanopore_run(config, run)
+                        core.submit_nanopore_run(config, run_to_submit)
                 if quit_when_safe:
                     exit(0)
             scan_complete_timestamp = datetime.datetime.now()
