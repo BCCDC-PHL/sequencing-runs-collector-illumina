@@ -107,7 +107,8 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
 
     libraries_by_library_id = {}
     for sample in samplesheet[samples_section_key]:
-        library = {}
+        library = {
+        }
         
         if re.match("S\d+$", sample['sample_id']):
             library_id_key = "sample_name"

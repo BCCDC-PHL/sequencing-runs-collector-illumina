@@ -9,7 +9,7 @@
     "$defs": {
         "data_element": {
             "type": "object",
-            "required": ["sample_id", "sample_project"],
+            "required": ["sample_id"],
             "properties": {
                 "sample_id": {
                     "type": "string"

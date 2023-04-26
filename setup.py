@@ -12,6 +12,7 @@ setup(
     packages=find_packages(exclude=('tests', 'tests.*')),
     python_requires='>=3.10,<3.11',
     install_requires=[
+        "jsonschema",
         "xmltodict==0.13.0",
         "interop==1.2.3",
         "pyfastx==1.0.1",

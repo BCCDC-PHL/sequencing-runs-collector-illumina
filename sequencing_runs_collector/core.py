@@ -203,9 +203,12 @@ def submit_illumina_run(config, run):
         }
         url = '/'.join([base_url, 'sequencing-runs', 'illumina'])
         try:
-            logging.debug(json.dumps(run, indent=2))
-            response = requests.post(url, headers=headers, json={"data": run})
-            exit()
+            request_body = {
+                'data': run,
+                'links': {},
+            }
+            logging.debug(json.dumps(request_body, indent=2))
+            response = requests.post(url, headers=headers, json=request_body)
         except requests.exceptions.ConnectionError as e:
             logging.error(json.dumps({'event_type': 'run_submission_failed', 'error_message': str(e)}))
     if response is not None:
@@ -213,6 +216,7 @@ def submit_illumina_run(config, run):
             logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'status_code': response.status_code, 'reason': response.reason}))
         else:
             logging.error(json.dumps({'event_type': 'run_submission_failed', 'status_code': response.status_code, 'reason': response.reason}))
+    exit()
 
 
 def load_nanopore_run(config, run):
