@@ -116,7 +116,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
 
         library_id = sample[library_id_key]
         library['library_id'] = library_id
-        library['samplesheet_project_id'] = sample[project_key]
+        library['samplesheet_project_id'] = sample.get(project_key, None)
         library['translated_project_id'] = project_id_translation.get(library['samplesheet_project_id'], None)
         libraries_by_library_id[library_id] = library
 

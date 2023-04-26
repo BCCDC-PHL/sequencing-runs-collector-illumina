@@ -1,5 +1,9 @@
+import json
+import logging
 import os
 import re
+
+from typing import Iterable, Optional
 
 import sequencing_runs_collector.illumina as illumina
 import sequencing_runs_collector.parsers.samplesheet as samplesheet
@@ -57,8 +61,66 @@ def run_id_to_date(run_id):
     return run_date
 
 
+def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]]:
+    """
+    Find all sequencing runs under all of the `run_parent_dirs` from the config.
+    Runs are found by matching sub-directory names against the following regexes: `"\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"` (MiSeq) and `"\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"` (NextSeq)
+
+    :param config: Application config.
+    :type config: dict[str, object]
+    :return: Dictionary of sequencin run info, indexed by sequencing run ID.
+    :rtype: Iterable[dict[str, object]]
+    """
+    run = {}
+    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
+    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+    run_parent_dirs = config.get('run_parent_dirs', None)
+    if run_parent_dirs is not None:
+        for run_parent_dir in run_parent_dirs:
+            if run_parent_dir is not None and os.path.exists(run_parent_dir):
+                subdirs = os.scandir(run_parent_dir)
+                for subdir in subdirs:
+                    run = {}
+                    instrument_type = None
+                    instrument_model = None
+                    run_id = subdir.name
+                    logging.debug(run_id)
+                    if re.match(miseq_run_id_regex, run_id):
+                        instrument_type = "ILLUMINA"
+                        instrument_model = "MISEQ"
+                    elif re.match(nextseq_run_id_regex, run_id):
+                        instrument_type = "ILLUMINA"
+                        instrument_model = "NEXTSEQ"
+                    if subdir.is_dir() and instrument_model != None and os.path.exists(os.path.join(subdir.path, "upload_complete.json")):
+                        logging.debug(json.dumps({"event_type": "sequencing_run_found", "sequencing_run_id": run_id}))
+                        run = {
+                            "run_id": run_id,
+                            "instrument_type": instrument_type,
+                            "instrument_model": instrument_model,
+                            "run_dir": subdir.path,
+                        }
+
+                        yield run
+
+
 def scan(config):
-    yield None
+    """
+    Scanning involves looking for all existing runs...
+
+    :param config: Application config.
+    :type config: dict[str, object]
+    :return: None
+    :rtype: NoneType
+    """
+    logging.info(json.dumps({"event_type": "scan_start"}))
+
+    logging.debug(json.dumps({"event_type": "find_runs_start"}))
+    num_runs_found = 0
+    for run in find_runs(config):
+        if run is not None:
+            yield run
+
+    logging.info(json.dumps({"event_type": "find_and_store_runs_complete", "num_runs_found": num_runs_found}))
 
 
 def load_illumina_run(config, run):
