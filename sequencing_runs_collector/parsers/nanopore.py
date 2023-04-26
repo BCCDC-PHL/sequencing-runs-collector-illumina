@@ -41,7 +41,7 @@ def parse_final_summary(final_summary_path):
 
         for field in datetime_fields:
             try:
-                final_summary[field] = datetime.datetime.fromisoformat(final_summary[field])
+                final_summary[field] = str(datetime.datetime.fromisoformat(final_summary[field]))
             except ValueError as e:
                 final_summary[field] = None
             except KeyError as e:

@@ -401,30 +401,31 @@ def _parse_samplesheet_nextseq_v1(samplesheet_path):
     return samplesheet
 
 
-def find_samplesheets(run_dir, instrument_type):
+def find_samplesheets(run_dir, instrument_type, instrument_model):
     """
     """
     samplesheet_paths = None
-    if instrument_type == 'miseq':
+    if instrument_model == 'MISEQ':
         samplesheet_paths = glob.glob(os.path.join(run_dir, "SampleSheet*.csv"))
-    elif instrument_type == 'nextseq':
-        top_level_samplesheets = glob.glob(os.path.join(run_dir, "SampleSheet*.csv"))
+    elif instrument_model == 'NEXTSEQ':
         analysis_dir_samplesheets = glob.glob(os.path.join(run_dir, "Analysis", "*", "Data", "SampleSheet*.csv"))
-        samplesheet_paths = top_level_samplesheets + analysis_dir_samplesheets                                    
+        samplesheet_paths = analysis_dir_samplesheets                                    
     return samplesheet_paths
 
 
-def choose_samplesheet_to_parse(samplesheet_paths: list[str], instrument_type: str):
+def choose_samplesheet_to_parse(samplesheet_paths: list[str], instrument_type: str, instrument_model: str):
     """
     A run directory may have multiple SampleSheet.csv files in it. Choose only one to parse.
 
     :param samplesheet_paths: List of paths to SampleSheet.csv files
     :type samplesheet_paths: list[str]
-    :param instrument_type: Instrument type, should be one of: "miseq", "nextseq"
+    :param instrument_type: Instrument type, should be one of: "ILLUMINA", "NANOPORE"
     :type instrument_type: str
+    :param instrument_model: Instrument model, should be one of: "MISEQ", "NEXTSEQ", "GRIDION", "PROMETHION"
+    :type instrument_model: str
     """
     samplesheet_to_parse = None
-    if instrument_type == 'miseq':
+    if instrument_model == 'MISEQ':
         for samplesheet_path in samplesheet_paths:
             if re.match("SampleSheet\.csv", os.path.basename(samplesheet_path)):
                 samplesheet_to_parse = samplesheet_path
@@ -435,7 +436,7 @@ def choose_samplesheet_to_parse(samplesheet_paths: list[str], instrument_type: s
                 # If there isn't a top-level "SampleSheet.csv", and there are more than
                 # one SampleSheet, then we have no other way of deciding which is preferable.
                 pass
-    elif instrument_type == 'nextseq':
+    elif instrument_model == 'NEXTSEQ':
         samplesheets_by_analysis_num = {}
         for samplesheet_path in samplesheet_paths:
             match = re.search("Analysis/(\d+)/Data", samplesheet_path)
@@ -482,12 +483,14 @@ def parse_samplesheet_nextseq(samplesheet_path: str):
     return samplesheet
 
 
-def parse_samplesheet(samplesheet_path: str, instrument_model: str) -> Optional[dict[str, object]]:
+def parse_samplesheet(samplesheet_path: str, instrument_type: str, instrument_model: str) -> Optional[dict[str, object]]:
     """
     :param samplesheet_path:
     :type samplesheet_path: str
-    :param instrument_type: One of `miseq` or `nextseq`
+    :param instrument_type: One of `ILLUMINA` or `NANOPORE`
     :type instrument_type: str
+    :param instrument_model: One of `MISEQ`, `NEXTSEQ`, `GRIDION`, `PROMETHION`
+    :type instrument_model: str
     """
     samplesheet = None
     if instrument_model == 'MISEQ':
