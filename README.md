@@ -1,4 +1,4 @@
-# sequencing-runs-db
+# sequencing-runs-collector
 
 A database for storing info about sequencing runs.
 
