@@ -9,7 +9,7 @@ from typing import Optional
 
 import jsonschema
 
-import sequencing_runs.util as util
+import sequencing_runs_collector.util as util
 
 
 def _parse_header_section_miseq_v1(samplesheet_path: str):

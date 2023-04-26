@@ -2,7 +2,7 @@ import os
 import re
 
 import sequencing_runs_collector.illumina as illumina
-import sequencing_runs_collector.samplesheet as samplesheet
+import sequencing_runs_collector.parsers.samplesheet as samplesheet
 
 
 def get_instrument_info_by_sequencing_run_id(sequencing_run_id):

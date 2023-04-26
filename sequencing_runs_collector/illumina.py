@@ -2,7 +2,7 @@ import glob
 import os
 import re
 
-import sequencing_run_collector.parsers.interop as interop
+import sequencing_runs_collector.parsers.interop as interop
 
 def get_illumina_interop_summary(run_dir):
     """
