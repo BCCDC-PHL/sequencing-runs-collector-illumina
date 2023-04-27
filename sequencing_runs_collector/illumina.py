@@ -1,8 +1,14 @@
 import glob
+import json
 import os
 import re
 
 import sequencing_runs_collector.parsers.interop as interop
+import sequencing_runs_collector.parsers.runinfo as runinfo
+
+
+MISEQ_RUN_ID_REGEX = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
+NEXTSEQ_RUN_ID_REGEX = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
 
 def get_illumina_interop_summary(run_dir):
     """
@@ -47,7 +53,7 @@ def get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument_model):
     demultiplexing_id = None
     if instrument_model == 'NEXTSEQ':
         demultiplexing_output_dir_basename = os.path.basename(demultiplexing_output_dir)
-        demultiplexing_output_dir = run_id + "-DMX" + demultiplexing_output_dir_basename
+        demultiplexing_id = run_id + "-DMX" + demultiplexing_output_dir_basename
     elif instrument_model == 'MISEQ':
         demultiplexing_output_dir_basename = os.path.basename(demultiplexing_output_dir)
         if demultiplexing_output_dir_basename == 'BaseCalls':
@@ -158,3 +164,35 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
     sequenced_libraries = list(libraries_by_library_id.values())
 
     return sequenced_libraries
+
+
+def get_runinfo(run_dir):
+    """
+    """
+    run_info = {
+        'num_cycles_r1': None,
+        'num_cycles_r2': None,
+    }
+    run_id = os.path.basename(run_dir)
+    runinfo_path = os.path.join(run_dir, 'RunInfo.xml')
+    if re.match(MISEQ_RUN_ID_REGEX, run_id):
+        parsed_runinfo = runinfo.parse_runinfo_miseq_v1(runinfo_path)
+        if 'reads' in parsed_runinfo:
+            for read in parsed_runinfo['reads']:
+                if not read['is_indexed_read']:
+                    if read['number'] == 1:
+                        run_info['num_cycles_r1'] = read['num_cycles']
+                    elif read['number'] == 4:
+                        run_info['num_cycles_r2'] = read['num_cycles']
+        
+    elif re.match(NEXTSEQ_RUN_ID_REGEX, run_id):
+        parsed_runinfo = runinfo.parse_runinfo_nextseq_v1(runinfo_path)
+        if 'reads' in parsed_runinfo:
+            for read in parsed_runinfo['reads']:
+                if not read['is_indexed_read']:
+                    if read['number'] == 1:
+                        run_info['num_cycles_r1'] = read['num_cycles']
+                    elif read['number'] == 4:
+                        run_info['num_cycles_r2'] = read['num_cycles']
+
+    return run_info

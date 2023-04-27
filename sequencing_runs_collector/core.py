@@ -8,30 +8,26 @@ from typing import Iterable, Optional
 
 
 import sequencing_runs_collector.illumina as illumina
+import sequencing_runs_collector.nanopore as nanopore
 import sequencing_runs_collector.parsers.samplesheet as samplesheet
 
 
 def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
     """
     """
-    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
-    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
-    gridion_run_id_regex = "\d{8}_\d{4}_X[1-5]_[A-Z0-9]+_[a-z0-9]{8}"
-    promethion_run_id_regex = "\d{8}_\d{4}_P2S_[0-9]{5}-\d{1}_[A-Z0-9]+_[a-z0-9]{8}"
-
     instrument = {}
-    if re.match(miseq_run_id_regex, sequencing_run_id):
+    if re.match(illumina.MISEQ_RUN_ID_REGEX, sequencing_run_id):
         instrument['instrument_type'] = "ILLUMINA"
         instrument['instrument_model'] = "MISEQ"
         instrument['instrument_id'] = sequencing_run_id.split('_')[1]
-    elif re.match(nextseq_run_id_regex, sequencing_run_id):
+    elif re.match(illumina.NEXTSEQ_RUN_ID_REGEX, sequencing_run_id):
         instrument['instrument_type'] = "ILLUMINA"
         instrument['instrument_model'] = "NEXTSEQ"
         instrument['instrument_id'] = sequencing_run_id.split('_')[1]
-    elif re.match(gridion_run_id_regex, sequencing_run_id):
+    elif re.match(nanopore.GRIDION_RUN_ID_REGEX, sequencing_run_id):
         instrument['instrument_type'] = "NANOPORE"
         instrument['instrument_model'] = "GRIDION"
-    elif re.match(promethion_run_id_regex, sequencing_run_id):
+    elif re.match(nanopore.PROMETHION_RUN_ID_REGEX, sequencing_run_id):
         instrument['instrument_type'] = "NANOPORE"
         instrument['instrument_model'] = "PROMETHION"
     else:
@@ -74,10 +70,6 @@ def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]
     :rtype: Iterable[dict[str, object]]
     """
     run = {}
-    miseq_run_id_regex = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
-    nextseq_run_id_regex = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
-    gridion_run_id_regex = "\d{8}_\d{4}_X[1-5]_[A-Z0-9]+_[a-z0-9]{8}"
-    promethion_run_id_regex = "\d{8}_\d{4}_P2S_[0-9]{5}-\d{1}_[A-Z0-9]+_[a-z0-9]{8}"
     run_parent_dirs = config.get('run_parent_dirs', None)
     if run_parent_dirs is not None:
         for run_parent_dir in run_parent_dirs:
@@ -88,16 +80,16 @@ def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]
                     instrument_type = None
                     instrument_model = None
                     run_id = subdir.name
-                    if re.match(miseq_run_id_regex, run_id):
+                    if re.match(illumina.MISEQ_RUN_ID_REGEX, run_id):
                         instrument_type = "ILLUMINA"
                         instrument_model = "MISEQ"
-                    elif re.match(nextseq_run_id_regex, run_id):
+                    elif re.match(illumina.NEXTSEQ_RUN_ID_REGEX, run_id):
                         instrument_type = "ILLUMINA"
                         instrument_model = "NEXTSEQ"
-                    elif re.match(gridion_run_id_regex, run_id):
+                    elif re.match(nanopore.GRIDION_RUN_ID_REGEX, run_id):
                         instrument_type = "NANOPORE"
                         instrument_model = "GRIDION"
-                    elif re.match(promethion_run_id_regex, run_id):
+                    elif re.match(nanopore.PROMETHION_RUN_ID_REGEX, run_id):
                         instrument_type = "NANOPORE"
                         instrument_model = "PROMETHION"
                     else:
@@ -141,12 +133,15 @@ def collect_illumina_run(config, run):
 
     run_dir = run['run_dir']
     run_id = os.path.basename(run_dir.rstrip('/'))
-
+    flowcell_id = run_id.split('_')[-1]
     instrument = get_instrument_info_by_sequencing_run_id(run_id)
     
     sequencing_run = {
         'id': run_id,
-        'attributes': {},
+        'type': "illumina_sequencing_run",
+        'attributes': {
+            'flowcell_id': flowcell_id,
+        },
     }
 
     if instrument['instrument_type'] == "ILLUMINA":
@@ -161,6 +156,8 @@ def collect_illumina_run(config, run):
     
     interop_summary = illumina.get_illumina_interop_summary(run_dir)
     sequencing_run['attributes'].update(interop_summary)
+    runinfo = illumina.get_runinfo(run_dir)
+    sequencing_run['attributes'].update(runinfo)
 
     demultiplexing_output_dirs = illumina.find_demultiplexing_output_dirs(run_dir, instrument['instrument_model'])
 
@@ -207,7 +204,7 @@ def submit_illumina_run(config, run):
                 'data': run,
                 'links': {},
             }
-            logging.debug(json.dumps(request_body, indent=2))
+            print(json.dumps(request_body, indent=2))
             response = requests.post(url, headers=headers, json=request_body)
         except requests.exceptions.ConnectionError as e:
             logging.error(json.dumps({'event_type': 'run_submission_failed', 'error_message': str(e)}))
@@ -216,7 +213,6 @@ def submit_illumina_run(config, run):
             logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'status_code': response.status_code, 'reason': response.reason}))
         else:
             logging.error(json.dumps({'event_type': 'run_submission_failed', 'status_code': response.status_code, 'reason': response.reason}))
-    exit()
 
 
 def load_nanopore_run(config, run):
