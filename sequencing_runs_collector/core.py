@@ -187,10 +187,10 @@ def collect_illumina_run(config, run):
 def submit_illumina_run(config, run):
     """
     """
-    
     base_url = config.get('api_root', None)
     api_token = config.get('api_token', None)
     response = None
+    run_id = run.get('id', None)
     if base_url is not None and api_token is not None:
         base_url = base_url.rstrip('/')
         headers = {
@@ -204,18 +204,48 @@ def submit_illumina_run(config, run):
                 'data': run,
                 'links': {},
             }
-            print(json.dumps(request_body, indent=2))
-            response = requests.post(url, headers=headers, json=request_body)
+            if config['dry_run']:
+                print(json.dumps(request_body, indent=2))
+            else:
+                response = requests.post(url, headers=headers, json=request_body)
         except requests.exceptions.ConnectionError as e:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'error_message': str(e)}))
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'error_message': str(e)}))
     if response is not None:
         if response.ok:
-            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'status_code': response.status_code, 'reason': response.reason}))
+            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
         else:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'status_code': response.status_code, 'reason': response.reason}))
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
 
 
-def load_nanopore_run(config, run):
+def submit_nanopore_run(config, run):
     """
     """
-    pass
+    base_url = config.get('api_root', None)
+    api_token = config.get('api_token', None)
+    response = None
+    run_id = run.get('id', None)
+    if base_url is not None and api_token is not None:
+        base_url = base_url.rstrip('/')
+        headers = {
+            'Authorization': "Bearer " + api_token,
+            'Content-Type': 'application/vnd.api+json',
+            'Accept': 'application/vnd.api+json',
+        }
+        url = '/'.join([base_url, 'sequencing-runs', 'nanopore'])
+        try:
+            request_body = {
+                'data': run,
+                'links': {},
+            }
+            if config['dry_run']:
+                print(json.dumps(request_body, indent=2))
+            else:
+                response = requests.post(url, headers=headers, json=request_body)
+        except requests.exceptions.ConnectionError as e:
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'error_message': str(e)}))
+    if response is not None:
+        if response.ok:
+            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
+        else:
+            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
+

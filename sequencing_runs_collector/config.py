@@ -2,9 +2,11 @@ import json
 import os
 import csv
 
-def load_config(config_path: str) -> dict[str, object]:
+def load_config(config_path: str, dry_run=False) -> dict[str, object]:
     with open(config_path, 'r') as f:
         config = json.load(f)
+
+    config['dry_run'] = dry_run
 
     config['project_id_translation'] = {}
 

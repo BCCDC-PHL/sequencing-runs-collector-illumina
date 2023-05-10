@@ -16,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config')
     parser.add_argument('--log-level')
+    parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
 
     config = {}
@@ -40,7 +41,7 @@ def main():
         try:
             if args.config:
                 try:
-                    config = sequencing_runs_collector.config.load_config(args.config)
+                    config = sequencing_runs_collector.config.load_config(args.config, dry_run=args.dry_run)
                     logging.info(json.dumps({"event_type": "config_loaded", "config_file": os.path.abspath(args.config)}))
                 except json.decoder.JSONDecodeError as e:
                     # If we fail to load the config file, we continue on with the
@@ -51,7 +52,7 @@ def main():
             for run in core.scan(config):
                 if run is not None:
                     try:
-                        config = sequencing_runs_collector.config.load_config(args.config)
+                        config = sequencing_runs_collector.config.load_config(args.config, dry_run=args.dry_run)
                         logging.info(json.dumps({"event_type": "config_loaded", "config_file": os.path.abspath(args.config)}))
                     except json.decoder.JSONDecodeError as e:
                         logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
