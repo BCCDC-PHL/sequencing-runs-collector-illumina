@@ -137,8 +137,15 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
         for sample in samplesheet[index_section_key]:
             if index_section_key == 'bclconvert_data':
                 library_id = sample['sample_id']
-                libraries_by_library_id[library_id]['index'] = sample['index']
-                libraries_by_library_id[library_id]['index2'] = sample['index2']
+                try:
+                    libraries_by_library_id[library_id]['index'] = sample['index']
+                    libraries_by_library_id[library_id]['index2'] = sample['index2']
+                except KeyError as e:
+                    libraries_by_library_id[library_id] = {
+                        'id': library_id,
+                        'index': sample['index'],
+                        'index2': sample['index2'],
+                    }
             else:
                 if re.match("S\d+$", sample['sample_id']):
                     library_id_key = "sample_name"
