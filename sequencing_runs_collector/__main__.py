@@ -60,12 +60,28 @@ def main():
                         run_to_submit = core.collect_illumina_run(config, run)
                         # TODO: further validation before submitting
                         if run_to_submit is not None:
-                            core.submit_illumina_run(config, run_to_submit)
+                            if 'submit' not in config or config['submit']:
+                                core.submit_illumina_run(config, run_to_submit)
+                            else:
+                                if 'write_to_file' in config and 'output_directory' in config:
+                                    if os.path.exists(str(config['output_directory'])) and config['write_to_file']:
+                                        output_file_path = os.path.join(str(config['output_directory']), str(run['run_id']) + '.json')
+                                        with open(output_file_path, 'w') as f:
+                                            json.dump(run_to_submit, f, indent=2)
+                                            logging.info(json.dumps({'event_type': 'run_data_written_to_file', 'run_id': run['run_id'], 'output_file_path': os.path.abspath(output_file_path)}))
                         else:
                             logging.debug(json.dumps({'event_type': 'skipped_submitting_run', 'run': run}))
                     elif run['instrument_type'] == 'NANOPORE':
                         run_to_submit = core.collect_nanopore_run(config, run)
-                        core.submit_nanopore_run(config, run_to_submit)
+                        if 'submit' not in config or config['submit']:
+                            core.submit_nanopore_run(config, run_to_submit)
+                        else:
+                            if 'write_to_file' in config and 'output_directory' in config:
+                                    if os.path.exists(str(config['output_directory'])) and config['write_to_file']:
+                                        output_file_path = os.path.join(str(config['output_directory']), str(run['run_id']) + '.json')
+                                        with open(output_file_path, 'w') as f:
+                                            json.dump(run_to_submit, f, indent=2)
+                                            logging.info(json.dumps({'event_type': 'run_data_written_to_file', 'run_id': run['run_id'], 'output_file_path': os.path.abspath(output_file_path)}))
                 if quit_when_safe:
                     exit(0)
             scan_complete_timestamp = datetime.datetime.now()
