@@ -1,0 +1,14 @@
+{
+    "run_parent_dirs": [
+	"/path/to/runs",
+	"/path/to/more/runs"
+    ],
+    "local_timezone": "America/Vancouver",
+    "project_id_translation_file": "project_id_translation.csv",
+    "scan_interval_seconds": 10,
+    "api_root": "http://localhost:8080/",
+    "api_token": "supersecret",
+    "submit": false,
+    "write_to_file": true,
+    "output_directory": "test_output"
+}
