@@ -27,7 +27,7 @@ setup(
     entry_points = {
         'console_scripts': [
             "sequencing-runs-collector = sequencing_runs_collector.__main__:main",
-            "submit-single-run = sequencing_runs_collector.submit_single_run:main",
+            "collect-single-run = sequencing_runs_collector.collect_single_run:main",
         ],
     }
 )

@@ -1,6 +1,6 @@
 # Project-specific
-regen_db.sh
-*.db
+dev-config.json
+test_output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

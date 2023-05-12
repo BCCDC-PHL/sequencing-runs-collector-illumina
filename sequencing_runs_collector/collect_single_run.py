@@ -50,7 +50,7 @@ def main():
     run = {}
     instrument_type = None
     instrument_model = None
-    run_id = os.path.basename(args.run_dir)
+    run_id = os.path.basename(args.run_dir.rstrip('/'))
     if re.match(illumina.MISEQ_RUN_ID_REGEX, run_id):
         instrument_type = "ILLUMINA"
         instrument_model = "MISEQ"
@@ -68,18 +68,27 @@ def main():
         exit(-1)
     if os.path.exists(args.run_dir) and instrument_model != None and os.path.exists(os.path.join(args.run_dir, "upload_complete.json")):
         logging.debug(json.dumps({"event_type": "sequencing_run_found", "sequencing_run_id": run_id}))
+
         run = {
             "run_id": run_id,
             "instrument_type": instrument_type,
             "instrument_model": instrument_model,
             "run_dir": os.path.abspath(args.run_dir),
         }
-        print(json.dumps(run, indent=2))
+
         if run['instrument_type'] == 'ILLUMINA':
             run_to_submit = core.collect_illumina_run(config, run)
             # TODO: further validation before submitting
             if run_to_submit is not None:
-                core.submit_illumina_run(config, run_to_submit)
+                if 'submit' not in config or config['submit']:
+                    core.submit_illumina_run(config, run_to_submit)
+                else:
+                    if 'write_to_file' in config and 'output_directory' in config:
+                        if os.path.exists(str(config['output_directory'])) and config['write_to_file']:
+                            output_file_path = os.path.join(str(config['output_directory']), run['run_id'] + '.json')
+                            with open(output_file_path, 'w') as f:
+                                json.dump(run_to_submit, f, indent=2)
+                                logging.info(json.dumps({'event_type': 'run_data_written_to_file', 'run_id': run['run_id'], 'output_file_path': os.path.abspath(output_file_path)}))
             else:
                 logging.debug(json.dumps({'event_type': 'skipped_submitting_run', 'run': run}))
         elif run['instrument_type'] == 'NANOPORE':
