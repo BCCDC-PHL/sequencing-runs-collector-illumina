@@ -138,22 +138,29 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             if index_section_key == 'bclconvert_data':
                 library_id = sample['sample_id']
                 try:
-                    libraries_by_library_id[library_id]['index'] = sample['index']
-                    libraries_by_library_id[library_id]['index2'] = sample['index2']
+                    if 'index' in sample:
+                        libraries_by_library_id[library_id]['index'] = sample['index']
+                    if 'index2' in sample:
+                        libraries_by_library_id[library_id]['index2'] = sample['index2']
                 except KeyError as e:
                     libraries_by_library_id[library_id] = {
-                        'id': library_id,
-                        'index': sample['index'],
-                        'index2': sample['index2'],
+                        'id': library_id
                     }
+                    if 'index' in sample:
+                        libraries_by_library_id[library_id]['index'] = sample['index']
+                    if 'index2' in sample:
+                        libraries_by_library_id[library_id]['index2'] = sample['index2']
+                    
             else:
                 if re.match("S\d+$", sample['sample_id']):
                     library_id_key = "sample_name"
                 else:
                     library_id_key = "sample_id"
                 library_id = sample[library_id_key]
-                libraries_by_library_id[library_id]['index'] = sample['index']
-                libraries_by_library_id[library_id]['index2'] = sample['index2']
+                if 'index' in sample:                 
+                    libraries_by_library_id[library_id]['index'] = sample['index']
+                if 'index2' in sample:
+                    libraries_by_library_id[library_id]['index2'] = sample['index2']
 
     if fastq_dir is not None and os.path.exists(fastq_dir):
         for library_id in libraries_by_library_id.keys():
