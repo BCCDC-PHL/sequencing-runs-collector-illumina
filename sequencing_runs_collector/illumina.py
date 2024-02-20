@@ -12,6 +12,12 @@ NEXTSEQ_RUN_ID_REGEX = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
 
 def get_illumina_interop_summary(run_dir):
     """
+    Get the interop summary for an Illumina run.
+
+    :param run_dir: Run directory
+    :type run_dir: str
+    :return: Interop summary
+    :rtype: dict[str, object]
     """
     interop_summary = interop.summary_nonindex(os.path.join(run_dir))
     if interop_summary.get('num_reads', None) and interop_summary.get('num_reads_passed_filter', None):
@@ -49,6 +55,16 @@ def find_demultiplexing_output_dirs(run_dir, instrument_model):
 
 def get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument_model):
     """
+    Get the demultiplexing ID for a run.
+
+    :param run_id: Run ID
+    :type run_id: str
+    :param demultiplexing_output_dir: Demultiplexing output directory
+    :type demultiplexing_output_dir: str
+    :param instrument_model: Instrument model ("MISEQ" or "NEXTSEQ")
+    :type instrument_model: str
+    :return: Demultiplexing ID
+    :rtype: str
     """
     demultiplexing_id = None
     if instrument_model == 'NEXTSEQ':
@@ -70,6 +86,14 @@ def get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument_model):
 
 def find_samplesheet(demultiplexing_output_dir, instrument_model):
     """
+    Find the SampleSheet for a demultiplexing output directory.
+
+    :param demultiplexing_output_dir: Demultiplexing output directory
+    :type demultiplexing_output_dir: str
+    :param instrument_model: Instrument model ("MISEQ" or "NEXTSEQ")
+    :type instrument_model: str
+    :return: Path to the SampleSheet, or None if not found.
+    :rtype: str|None
     """
     samplesheet_path = None
     if instrument_model == 'NEXTSEQ':
@@ -93,6 +117,18 @@ def find_samplesheet(demultiplexing_output_dir, instrument_model):
 
 def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demultiplexing_output_dir, project_id_translation):
     """
+    Get the sequenced libraries from a samplesheet.
+
+    :param samplesheet: Samplesheet
+    :type samplesheet: dict[str, object]
+    :param instrument_model: Instrument model ("MISEQ" or "NEXTSEQ")
+    :type instrument_model: str
+    :param demultiplexing_output_dir: Demultiplexing output directory
+    :type demultiplexing_output_dir: str
+    :param project_id_translation: Project ID translation
+    :type project_id_translation: dict[str, str]
+    :return: Sequenced libraries. Each library is a dictionary with keys: ['samplesheet_library_id', 'cleaned_library_id', 'samplesheet_project_id', 'translated_project_id', 'index', 'index2', 'fastq_path_r1', 'fastq_path_r2']
+    :rtype: list[dict[str, object]]
     """
     sequenced_libraries = []
     samples_section_key = None
@@ -116,13 +152,19 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
         library = {
         }
         
-        if re.match("S\d+$", sample['sample_id']):
-            library_id_key = "sample_name"
+        if (re.match("S\d+$", sample['sample_id']) or re.match("\d+$", sample['sample_id'])):
+            if 'sample_name' in sample and not (re.match("S\d+$", sample['sample_name']) or re.match("\d+$", sample['sample_name'])):
+                library_id_key = "sample_name"
+            else:
+                library_id_key = "sample_id"
         else:
             library_id_key = "sample_id"
 
-        library_id = sample[library_id_key]
-        library['id'] = library_id
+        samplesheet_library_id = sample[library_id_key]
+        cleaned_library_id = samplesheet_library_id.replace("_", "-")
+        library_id = cleaned_library_id
+        library['samplesheet_library_id'] = samplesheet_library_id
+        library['cleaned_library_id'] = cleaned_library_id
         library['samplesheet_project_id'] = sample.get(project_key, None)
         library['translated_project_id'] = project_id_translation.get(library['samplesheet_project_id'], None)
         libraries_by_library_id[library_id] = library
@@ -136,7 +178,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
     if index_section_key is not None:
         for sample in samplesheet[index_section_key]:
             if index_section_key == 'bclconvert_data':
-                library_id = sample['sample_id']
+                library_id = sample['sample_id'].replace("_", "-")
                 try:
                     if 'index' in sample:
                         libraries_by_library_id[library_id]['index'] = sample['index']
@@ -152,11 +194,14 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                         libraries_by_library_id[library_id]['index2'] = sample['index2']
                     
             else:
-                if re.match("S\d+$", sample['sample_id']):
-                    library_id_key = "sample_name"
+                if (re.match("S\d+$", sample['sample_id']) or re.match("\d+$", sample['sample_id'])):
+                    if 'sample_name' in sample and not (re.match("S\d+$", sample['sample_name']) or re.match("\d+$", sample['sample_name'])):
+                        library_id_key = "sample_name"
+                    else:
+                        library_id_key = "sample_id"
                 else:
                     library_id_key = "sample_id"
-                library_id = sample[library_id_key]
+                library_id = sample[library_id_key].replace("_", "-")
                 if 'index' in sample:                 
                     libraries_by_library_id[library_id]['index'] = sample['index']
                 if 'index2' in sample:
@@ -182,6 +227,12 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
 
 def get_runinfo(run_dir):
     """
+    Get run information from the RunInfo.xml file.
+
+    :param run_dir: Run directory
+    :type run_dir: str
+    :return: Run information
+    :rtype: dict[str, object]
     """
     run_info = {
         'num_cycles_r1': None,

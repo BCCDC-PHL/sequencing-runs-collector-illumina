@@ -39,6 +39,12 @@ def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
 
 def run_id_to_date(run_id):
     """
+    Generate an ISO8601-formatted date from the run ID.
+
+    :param run_id: Sequencing run ID
+    :type run_id: str
+    :return: ISO8601-formatted date
+    :rtype: str
     """
     run_date = None
     run_id_date_component = run_id.split('_')[0]
@@ -129,6 +135,7 @@ def scan(config):
 
 def collect_illumina_run(config, run):
     """
+    
     """
 
     run_dir = run['run_dir']
@@ -137,11 +144,8 @@ def collect_illumina_run(config, run):
     instrument = get_instrument_info_by_sequencing_run_id(run_id)
     
     sequencing_run = {
-        'id': run_id,
-        'type': "illumina_sequencing_run",
-        'attributes': {
-            'flowcell_id': flowcell_id,
-        },
+        'sequencing_run_id': run_id,
+        'flowcell_id': flowcell_id,
     }
 
     if instrument['instrument_type'] == "ILLUMINA":
@@ -150,26 +154,26 @@ def collect_illumina_run(config, run):
         exit("Incorrect sequencing run type. This parser only supports illumina runs.")
 
     run_date = run_id_to_date(run_id)
-    sequencing_run['attributes']['run_date'] = run_date
-    sequencing_run['attributes']['instrument_id'] = instrument.get('instrument_id')
+    sequencing_run['run_date'] = run_date
+    sequencing_run['instrument_id'] = instrument.get('instrument_id')
 
     
     interop_summary = illumina.get_illumina_interop_summary(run_dir)
-    sequencing_run['attributes'].update(interop_summary)
+    sequencing_run.update(interop_summary)
     runinfo = illumina.get_runinfo(run_dir)
-    sequencing_run['attributes'].update(runinfo)
+    sequencing_run.update(runinfo)
 
     demultiplexing_output_dirs = illumina.find_demultiplexing_output_dirs(run_dir, instrument['instrument_model'])
 
-    sequencing_run['attributes']['demultiplexings'] = []
+    sequencing_run['demultiplexings'] = []
     for demultiplexing_output_dir in demultiplexing_output_dirs:
         demultiplexing = {
-            'id': None,
+            'demultiplexing_id': None,
             'samplesheet_path': None,
             'sequenced_libraries': [],
         }
         demultiplexing_id = illumina.get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument['instrument_model'])
-        demultiplexing['id'] = demultiplexing_id
+        demultiplexing['demultiplexing_id'] = demultiplexing_id
         samplesheet_path = illumina.find_samplesheet(demultiplexing_output_dir, instrument['instrument_model'])
         demultiplexing['samplesheet_path'] = samplesheet_path
         
@@ -179,7 +183,7 @@ def collect_illumina_run(config, run):
             sequenced_libraries = illumina.get_sequenced_libraries_from_samplesheet(parsed_samplesheet, instrument['instrument_model'], demultiplexing_output_dir, config['project_id_translation'])
             demultiplexing['sequenced_libraries'] = sequenced_libraries
 
-        sequencing_run['attributes']['demultiplexings'].append(demultiplexing)
+        sequencing_run['demultiplexings'].append(demultiplexing)
 
     return sequencing_run
 

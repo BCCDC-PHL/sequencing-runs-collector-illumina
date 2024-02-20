@@ -48,6 +48,8 @@ index_summary_int_fields = set([
 
 def summary_nonindex(run_dir_path):
     """
+    Collect summary data for non-index reads.
+
     :param run_dir_path: Path to the top-level run directory
     :type run_dir_path: str
     :return:
@@ -77,6 +79,8 @@ def summary_nonindex(run_dir_path):
 
 def summary_read(run_dir_path):
     """
+    Collect summary read data from the run directory.
+
     :param run_dir_path: Path to the top-level run directory
     :type run_dir_path: str
     :return:
@@ -110,6 +114,13 @@ def summary_read(run_dir_path):
 
 def index_summary_barcode(run_dir_path):
     """
+    Collect index summary barcode data from the run directory.
+    Note: not currently called by any other function.
+
+    :param run_dir_path: Path to the top-level run directory
+    :type run_dir_path: str
+    :return:
+    :rtype: list[dict[str, object]]
     """
     index_summary_barcode_ndarray = interop.index_summary(run_dir_path, 'Barcode')
     original_field_names = index_summary_barcode_ndarray.dtype.names
@@ -137,6 +148,13 @@ def index_summary_barcode(run_dir_path):
 
 def indexing(run_dir_path):
     """
+    Collect indexing data from the run directory.
+    Note: not currently called by any other function.
+
+    :param run_dir_path: Path to the top-level run directory
+    :type run_dir_path: str
+    :return: Indexing data
+    :rtype: list[dict[str, object]]
     """
     indexing_ndarray = interop.indexing(run_dir_path)
     original_field_names = indexing_ndarray.dtype.names
