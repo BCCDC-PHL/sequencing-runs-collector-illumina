@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import glob
 import json
 import logging
 import os
@@ -38,6 +39,8 @@ def main():
     scan_interval = DEFAULT_SCAN_INTERVAL_SECONDS
 
     while(True):
+        if quit_when_safe:
+            exit(0)
         try:
             if args.config:
                 try:
@@ -49,6 +52,12 @@ def main():
                     logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
 
             scan_start_timestamp = datetime.datetime.now()
+            existing_run_outputs = []
+            existing_run_output_files_glob = os.path.join(str(config['output_directory']), '*.json')
+            existing_run_output_files = glob.glob(existing_run_output_files_glob)
+            for existing_run_output_file in existing_run_output_files:
+                existing_run_outputs.append(os.path.basename(existing_run_output_file))
+
             for run in core.scan(config):
                 if run is not None:
                     try:
@@ -56,18 +65,26 @@ def main():
                         logging.info(json.dumps({"event_type": "config_loaded", "config_file": os.path.abspath(args.config)}))
                     except json.decoder.JSONDecodeError as e:
                         logging.error(json.dumps({"event_type": "load_config_failed", "config_file": os.path.abspath(args.config)}))
+
+                    # TODO: Work out logic for skipping runs that exist in the service, in addition
+                    # to those that exist in the output directory.
+                    if 'skip_existing_runs' in config and config['skip_existing_runs']:
+                        if run['run_id'] + '.json' in existing_run_outputs:
+                            logging.debug(json.dumps({'event_type': 'skipped_existing_run', 'run': run}))
+                            continue
                     if run['instrument_type'] == 'ILLUMINA':
                         run_to_submit = core.collect_illumina_run(config, run)
                         # TODO: further validation before submitting
                         if run_to_submit is not None:
-                            if 'submit' not in config or config['submit']:
-                                core.submit_illumina_run(config, run_to_submit)
                             if 'write_to_file' in config and 'output_directory' in config:
                                 if os.path.exists(str(config['output_directory'])) and config['write_to_file']:
                                     output_file_path = os.path.join(str(config['output_directory']), str(run['run_id']) + '.json')
                                     with open(output_file_path, 'w') as f:
                                         json.dump(run_to_submit, f, indent=2)
-                                        logging.info(json.dumps({'event_type': 'run_data_written_to_file', 'run_id': run['run_id'], 'output_file_path': os.path.abspath(output_file_path)}))
+                                        f.write('\n')
+                                    logging.info(json.dumps({'event_type': 'run_data_written_to_file', 'run_id': run['run_id'], 'output_file_path': os.path.abspath(output_file_path)}))
+                            if 'submit' not in config or config['submit']:
+                                core.submit_illumina_run(config, run_to_submit)
                         else:
                             logging.debug(json.dumps({'event_type': 'skipped_submitting_run', 'run': run}))
                     elif run['instrument_type'] == 'NANOPORE':

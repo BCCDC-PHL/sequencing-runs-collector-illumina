@@ -14,6 +14,12 @@ import sequencing_runs_collector.parsers.samplesheet as samplesheet
 
 def get_instrument_info_by_sequencing_run_id(sequencing_run_id):
     """
+    Get instrument info by sequencing run ID.
+
+    :param sequencing_run_id: Sequencing run ID
+    :type sequencing_run_id: str
+    :return: Instrument info
+    :rtype: dict[str, str]
     """
     instrument = {}
     if re.match(illumina.MISEQ_RUN_ID_REGEX, sequencing_run_id):
@@ -135,7 +141,14 @@ def scan(config):
 
 def collect_illumina_run(config, run):
     """
-    
+    Collect data for an Illumina sequencing run.
+
+    :param config: Application config.
+    :type config: dict[str, object]
+    :param run: Run directory. Keys: [run_id, run_dir]
+    :type run: dict[str, object]
+    :return: Sequencing run data. Keys: [sequencing_run_id, flowcell_id, run_date, instrument_id, reads, clusters, yield, demultiplexings]
+    :rtype: dict[str, object]
     """
 
     run_dir = run['run_dir']
@@ -147,11 +160,6 @@ def collect_illumina_run(config, run):
         'sequencing_run_id': run_id,
         'flowcell_id': flowcell_id,
     }
-
-    if instrument['instrument_type'] == "ILLUMINA":
-        sequencing_run['type'] = "illumina_sequencing_run"
-    else:
-        exit("Incorrect sequencing run type. This parser only supports illumina runs.")
 
     run_date = run_id_to_date(run_id)
     sequencing_run['run_date'] = run_date
@@ -252,4 +260,3 @@ def submit_nanopore_run(config, run):
             logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
         else:
             logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
-
