@@ -18,7 +18,7 @@ setup(
         "pyfastx==1.0.1",
         "pytz==2023.3",
         "pytest==7.3.0",
-        "requests==2.28.2",
+        "requests==2.31.0",
     ],
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=[
