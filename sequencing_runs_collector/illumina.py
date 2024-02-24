@@ -351,7 +351,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                     if num_bases is None:
                         num_bases = 0
                     num_bases += fastq_stats_r2['num_bases']
-                libraries_by_library_id[library_id]['fastq_filaname_r2'] = fastq_filename_r2
+                libraries_by_library_id[library_id]['fastq_filename_r2'] = fastq_filename_r2
                 libraries_by_library_id[library_id]['fastq_md5_r2'] = fastq_stats_r2.get('md5', None)
                 libraries_by_library_id[library_id]['q30_percent_r2'] = fastq_stats_r2.get('q30_percent', None)
                 libraries_by_library_id[library_id]['q30_percent_last_25_bases_r2'] = fastq_stats_r2.get('q30_percent_last_25_bases', None)
