@@ -28,6 +28,13 @@ def get_illumina_interop_summary(run_dir):
     if interop_summary.get('cluster_count', None) and interop_summary.get('cluster_count_passed_filter', None):
         interop_summary['percent_clusters_passed_filter'] = interop_summary['cluster_count_passed_filter'] / interop_summary['cluster_count'] * 100
 
+    summary_lane = interop.summary_lane(os.path.join(run_dir))
+    interop_summary['cluster_density'] = None
+    interop_summary['cluster_density_passed_filter'] = None
+    if len(summary_lane) > 0:
+        interop_summary['cluster_density'] = summary_lane[0].get('cluster_density', None)
+        interop_summary['cluster_density_passed_filter'] = summary_lane[0].get('cluster_density_passed_filter', None)
+
     return interop_summary
 
 
@@ -208,7 +215,7 @@ def find_fastq_output_dir(demultiplexing_output_dir, instrument_model):
     return fastq_dir
 
 
-def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demultiplexing_output_dir, project_id_translation):
+def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demultiplexing_output_dir, project_id_translation, collect_fastq_stats=False):
     """
     Get the sequenced libraries from a samplesheet.
 
@@ -241,8 +248,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
 
     libraries_by_library_id = {}
     for sample in samplesheet[samples_section_key]:
-        library = {
-        }
+        library = {}
         
         if (re.match("S\d+$", sample['sample_id']) or re.match("\d+$", sample['sample_id'])):
             if 'sample_name' in sample and not (re.match("S\d+$", sample['sample_name']) or re.match("\d+$", sample['sample_name'])):
@@ -323,7 +329,10 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                         sample_number = int(sample_number_match.group(1).replace('S', '').lstrip('0'))
                     except ValueError as e:
                         pass
-                fastq_stats_r1 = get_fastq_stats(fastq_path_r1)
+                if collect_fastq_stats:
+                    fastq_stats_r1 = get_fastq_stats(fastq_path_r1)
+                else:
+                    fastq_stats_r1 = {}
                 if 'num_reads' in fastq_stats_r1 and fastq_stats_r1['num_reads'] is not None:
                     if num_reads is None:
                         num_reads = 0
@@ -342,7 +351,10 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             if len(fastq_paths_r2) > 0:
                 fastq_path_r2 = fastq_paths_r2[0]
                 fastq_filename_r2 = os.path.basename(fastq_path_r2)
-                fastq_stats_r2 = get_fastq_stats(fastq_path_r2)
+                if collect_fastq_stats:
+                    fastq_stats_r2 = get_fastq_stats(fastq_path_r2)
+                else:
+                    fastq_stats_r2 = {}
                 if 'num_reads' in fastq_stats_r2 and fastq_stats_r2['num_reads'] is not None:
                     if num_reads is None:
                         num_reads = 0

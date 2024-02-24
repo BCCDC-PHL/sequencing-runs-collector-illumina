@@ -183,16 +183,23 @@ def collect_illumina_run(config, run):
         demultiplexing_id = illumina.get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument['instrument_model'])
         demultiplexing['demultiplexing_id'] = demultiplexing_id
         samplesheet_path = illumina.find_samplesheet(demultiplexing_output_dir, instrument['instrument_model'])
-        samplesheet_path_relative = os.path.relpath(samplesheet_path, run_dir)
+        if samplesheet_path is not None:
+            samplesheet_path_relative = os.path.relpath(samplesheet_path, run_dir)
+        else:
+            samplesheet_path_relative = None
         demultiplexing['samplesheet_path'] = samplesheet_path_relative
         fastq_dir = illumina.find_fastq_output_dir(demultiplexing_output_dir, instrument['instrument_model'])
         demultiplexing['fastq_dir_path'] = os.path.relpath(fastq_dir, run_dir)
         
         if samplesheet_path is not None:
             parsed_samplesheet = samplesheet.parse_samplesheet(samplesheet_path, instrument['instrument_type'], instrument['instrument_model'])
-            sequencing_run['experiment_name'] = parsed_samplesheet.get('header', {}).get('experiment_name', None)
+            if instrument['instrument_model'].upper() == "MISEQ":
+                sequencing_run['experiment_name'] = parsed_samplesheet.get('header', {}).get('experiment_name', None)
+            elif instrument['instrument_model'].upper() == "NEXTSEQ":
+                sequencing_run['experiment_name'] = parsed_samplesheet.get('header', {}).get('run_name', None)
 
-            sequenced_libraries = illumina.get_sequenced_libraries_from_samplesheet(parsed_samplesheet, instrument['instrument_model'], demultiplexing_output_dir, config['project_id_translation'])
+            collect_fastq_stats = config.get('collect_fastq_stats', False)
+            sequenced_libraries = illumina.get_sequenced_libraries_from_samplesheet(parsed_samplesheet, instrument['instrument_model'], demultiplexing_output_dir, config['project_id_translation'], collect_fastq_stats)
             demultiplexing['sequenced_libraries'] = sequenced_libraries
 
         sequencing_run['demultiplexings'].append(demultiplexing)

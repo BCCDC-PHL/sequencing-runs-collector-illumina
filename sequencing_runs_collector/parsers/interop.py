@@ -6,6 +6,8 @@ summary_field_translation = {
     'IsIndex': 'is_index',
     'Cluster Count': 'cluster_count',
     'Cluster Count Pf': 'cluster_count_passed_filter',
+    'Density': 'cluster_density',
+    'Density Pf': 'cluster_density_passed_filter',
     'Error Rate': 'error_rate',
     'First Cycle Intensity': 'first_cycle_intensity',
     '% Aligned': 'percent_aligned',
@@ -93,6 +95,51 @@ def summary_nonindex(run_dir_path):
         summary_dict = summary_dict_translated_field_names
 
     return summary_dict
+
+
+def summary_lane(run_dir_path):
+    """
+    Collect summary lane data from the run directory.
+
+    :param run_dir_path: Path to the top-level run directory
+    :type run_dir_path: str
+    :return:
+    :rtype: list[dict[str, object]]
+    """
+    summary_lane_ndarray = interop.summary(run_dir_path, 'Lane')
+
+    original_field_names = summary_lane_ndarray.dtype.names
+    summary_dicts = []
+
+    for s in summary_lane_ndarray.tolist():
+        summary_dict_original_field_names = dict(zip(original_field_names, s))
+        summary_dict_translated_field_names = {}
+        for original_field_name in original_field_names:
+            if original_field_name in summary_field_translation:
+                translated_field_name = summary_field_translation[original_field_name]
+                value = summary_dict_original_field_names[original_field_name]
+                if translated_field_name in summary_int_fields:
+                    summary_dict_translated_field_names[translated_field_name] = int(value)
+                else:
+                    summary_dict_translated_field_names[translated_field_name] = value
+        if summary_dict_translated_field_names['is_index'] == 89:
+            summary_dict_translated_field_names['is_index'] = True
+        elif summary_dict_translated_field_names['is_index'] == 78:
+            summary_dict_translated_field_names['is_index'] = False
+
+        try:
+            summary_dict_translated_field_names['cluster_density'] = summary_dict_translated_field_names['cluster_density'] / 1000
+        except ValueError as e:
+            summary_dict_translated_field_names['cluster_density'] = None
+
+        try:
+            summary_dict_translated_field_names['cluster_density_passed_filter'] = summary_dict_translated_field_names['cluster_density_passed_filter'] / 1000
+        except ValueError as e:
+            summary_dict_translated_field_names['cluster_density_passed_filter'] = None
+
+        summary_dicts.append(summary_dict_translated_field_names)
+
+    return summary_dicts
 
 
 def summary_read(run_dir_path):
