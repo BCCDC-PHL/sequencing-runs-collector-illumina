@@ -1,6 +1,7 @@
 # Project-specific
-dev-config.json
+dev-config*.json
 test_output
+project_id_translation.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
