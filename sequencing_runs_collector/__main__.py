@@ -73,7 +73,11 @@ def main():
                             logging.debug(json.dumps({'event_type': 'skipped_existing_run', 'run': run}))
                             continue
                     if run['instrument_type'] == 'ILLUMINA':
+                        timestamp_collect_run_start = datetime.datetime.now()
+                        logging.info(json.dumps({'event_type': 'collect_run_start', 'run_id': run['run_id'], 'run_dir': run['run_dir']}))
                         run_to_submit = core.collect_illumina_run(config, run)
+                        timestamp_collect_run_complete = datetime.datetime.now()
+                        logging.info(json.dumps({'event_type': 'collect_run_complete', 'run_id': run['run_id'], 'collect_run_duration_seconds': (timestamp_collect_run_complete - timestamp_collect_run_start).total_seconds()}))
                         # TODO: further validation before submitting
                         if run_to_submit is not None:
                             if 'write_to_file' in config and 'output_directory' in config:

@@ -24,6 +24,16 @@ summary_int_fields = set([
     'num_reads_passed_filter',
 ])
 
+summary_float_fields = set([
+    'error_rate',
+    'first_cycle_intensity',
+    'percent_aligned',
+    'q30_percent',
+    'percent_occupied',
+    'projected_yield_gigabases',
+    'yield_gigabases',
+])
+
 index_summary_field_translation = {
     'Lane': 'lane',
     'Tile': 'tile',
@@ -69,7 +79,15 @@ def summary_nonindex(run_dir_path):
                 translated_field_name = summary_field_translation[original_field_name]
                 value = summary_dict_original_field_names[original_field_name]
                 if translated_field_name in summary_int_fields:
-                    summary_dict_translated_field_names[translated_field_name] = int(value)
+                    try:
+                        summary_dict_translated_field_names[translated_field_name] = int(value)
+                    except ValueError as e:
+                        summary_dict_translated_field_names[translated_field_name] = None
+                elif translated_field_name in summary_float_fields:
+                    try:
+                        summary_dict_translated_field_names[translated_field_name] = round(float(value), 4)
+                    except ValueError as e:
+                        summary_dict_translated_field_names[translated_field_name] = None
                 else:
                     summary_dict_translated_field_names[translated_field_name] = value
         summary_dict = summary_dict_translated_field_names
