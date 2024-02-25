@@ -340,6 +340,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             fastq_filename_r1 = None
             fastq_path_r2 = None
             fastq_filename_r2 = None
+
             fastq_paths_r1 = glob.glob(os.path.join(fastq_dir, library_id + '_*_R1_*.fastq.gz'))
             if len(fastq_paths_r1) > 0:
                 fastq_path_r1 = fastq_paths_r1[0]
@@ -408,33 +409,63 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             read_type = fastq_stat['read_type']
             if library_id not in fastq_stats_by_library_id:
                 fastq_stats_by_library_id[library_id] = {}
-            fastq_stats_by_library_id[library_id].update(fastq_stat['fastq_stats'])
+            fastq_stats_by_library_id[library_id].update(fastq_stat.get('fastq_stats', {}).copy())
 
         for library_id, fastq_stats in fastq_stats_by_library_id.items():
-            num_bases_total = fastq_stats['num_bases_r1'] + fastq_stats['num_bases_r2']
-            num_reads_total = fastq_stats['num_reads_r1'] + fastq_stats['num_reads_r2']
-            q30_percent_r1 = fastq_stats['q30_percent_r1']
-            q30_percent_r2 = fastq_stats['q30_percent_r2']
-            num_q30_bases_r1 = round(fastq_stats['num_bases_r1'] * q30_percent_r1 / 100)
-            num_q30_bases_r2 = round(fastq_stats['num_bases_r2'] * q30_percent_r2 / 100)
-            num_q30_bases_total = num_q30_bases_r1 + num_q30_bases_r2
-            q30_percent_total = round(num_q30_bases_total / num_bases_total * 100, 4)
-            q30_percent_last_25_bases_r1 = fastq_stats['q30_percent_last_25_bases_r1']
-            q30_percent_last_25_bases_r2 = fastq_stats['q30_percent_last_25_bases_r2']
-            num_bases_last_25_r1 = fastq_stats['num_reads_r1'] * 25
-            num_bases_last_25_r2 = fastq_stats['num_reads_r2'] * 25
-            num_bases_last_25_total = num_bases_last_25_r1 + num_bases_last_25_r2
-            num_q30_bases_last_25_r1 = round(num_bases_last_25_r1 * q30_percent_last_25_bases_r1 / 100)
-            num_q30_bases_last_25_r2 = round(num_bases_last_25_r2 * q30_percent_last_25_bases_r2 / 100)
-            num_q30_bases_last_25_total = num_q30_bases_last_25_r1 + num_q30_bases_last_25_r2
-            q30_percent_last_25_bases_total = round(num_q30_bases_last_25_total / num_bases_last_25_total * 100, 4)
+            required_keys = [
+                'num_reads_r1',
+                'num_reads_r2',
+                'num_bases_r1',
+                'num_bases_r2',
+                'q30_percent_r1',
+                'q30_percent_r2',
+                'q30_percent_last_25_bases_r1',
+                'q30_percent_last_25_bases_r2',
+            ]
+            all_keys_present = all(key in fastq_stats for key in required_keys)
+            
+            if all_keys_present:
+                all_keys_have_values = all(fastq_stats[key] is not None for key in required_keys)
+                if all_keys_have_values:
+                    num_bases_total = fastq_stats['num_bases_r1'] + fastq_stats['num_bases_r2']
+                    num_reads_total = fastq_stats['num_reads_r1'] + fastq_stats['num_reads_r2']
+                    q30_percent_r1 = fastq_stats['q30_percent_r1']
+                    q30_percent_r2 = fastq_stats['q30_percent_r2']
+                    num_q30_bases_r1 = round(fastq_stats['num_bases_r1'] * q30_percent_r1 / 100)
+                    num_q30_bases_r2 = round(fastq_stats['num_bases_r2'] * q30_percent_r2 / 100)
+                    num_q30_bases_total = num_q30_bases_r1 + num_q30_bases_r2
+                    q30_percent_total = round(num_q30_bases_total / num_bases_total * 100, 4)
+                    q30_percent_last_25_bases_r1 = fastq_stats['q30_percent_last_25_bases_r1']
+                    q30_percent_last_25_bases_r2 = fastq_stats['q30_percent_last_25_bases_r2']
+                    num_bases_last_25_r1 = fastq_stats['num_reads_r1'] * 25
+                    num_bases_last_25_r2 = fastq_stats['num_reads_r2'] * 25
+                    num_bases_last_25_total = num_bases_last_25_r1 + num_bases_last_25_r2
+                    num_q30_bases_last_25_r1 = round(num_bases_last_25_r1 * q30_percent_last_25_bases_r1 / 100)
+                    num_q30_bases_last_25_r2 = round(num_bases_last_25_r2 * q30_percent_last_25_bases_r2 / 100)
+                    num_q30_bases_last_25_total = num_q30_bases_last_25_r1 + num_q30_bases_last_25_r2
+                    q30_percent_last_25_bases_total = round(num_q30_bases_last_25_total / num_bases_last_25_total * 100, 4)
+                else:
+                    num_reads_total = None
+                    num_bases_total = None
+                    q30_percent_total = None
+                    q30_percent_last_25_bases_total = None
+            else:
+                num_reads_total = None
+                num_bases_total = None
+                q30_percent_total = None
+                q30_percent_last_25_bases_total = None
             fastq_stats_by_library_id[library_id]['num_reads'] = num_reads_total
             fastq_stats_by_library_id[library_id]['num_bases'] = num_bases_total
             fastq_stats_by_library_id[library_id]['q30_percent'] = q30_percent_total
             fastq_stats_by_library_id[library_id]['q30_percent_last_25_bases'] = q30_percent_last_25_bases_total
 
         for library_id, library in libraries_by_library_id.items():
-            library.update(fastq_stats_by_library_id[library_id])
+            if library_id in fastq_stats_by_library_id:
+                library.update(fastq_stats_by_library_id[library_id])
+                library.pop('num_reads_r1', None)
+                library.pop('num_reads_r2', None)
+                library.pop('num_bases_r1', None)
+                library.pop('num_bases_r2', None)
 
     sequenced_libraries = list(libraries_by_library_id.values())
             
