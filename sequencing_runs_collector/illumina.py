@@ -1,6 +1,9 @@
+import datetime
 import glob
 import json
 import hashlib
+import logging
+import multiprocessing
 import os
 import re
 
@@ -125,22 +128,35 @@ def find_samplesheet(demultiplexing_output_dir, instrument_model):
     return samplesheet_path
 
 
-def get_fastq_stats(fastq_path):
+def get_fastq_stats(fastq_path, library_id, read_type="R1"):
     """
     Get statistics for a FASTQ file.
 
     :param fastq_path: Path to FASTQ file
     :type fastq_path: str
+    :param library_id: Library ID
+    :type library_id: str
+    :param read_number: Read number
+    :type read_type: str
     :return: FASTQ statistics keys: [num_reads, num_bases]
     :rtype: dict[str, object]
     """
     try:
         fq = pyfastx.Fastq(fastq_path, build_index=False)
     except RuntimeError as e:
-        return {
-            'num_reads': None,
-            'num_bases': None,
+        fastq_stats_summary = {
+            'library_id': library_id,
+            'read_type': read_type,
+            'stats': {
+                'num_reads_' + read_type.lower(): None,
+                'num_bases_' + read_type.lower(): None,
+                'q30_percent_' + read_type.lower(): None,
+                'q30_percent_last_25_bases_' + read_type.lower(): None,
+                'fastq_md5_' + read_type.lower(): None,
+                'fastq_file_size_mb' + read_type.lower(): None,
+            }
         }
+        return fastq_stats_summary
 
     num_reads = 0
     num_bases = 0
@@ -158,7 +174,6 @@ def get_fastq_stats(fastq_path):
             
         num_reads += 1
         num_bases += len(seq)
-
 
     file_size_bytes = os.path.getsize(fastq_path)
     try:
@@ -179,17 +194,22 @@ def get_fastq_stats(fastq_path):
         q30_percent_last_25_bases = round(num_bases_over_q30_last_25 / (25 * num_reads) * 100, 4)
     except (ZeroDivisionError, ValueError) as e:
         q30_percent_last_25_bases = None
-        
-    stats = {
-        'num_reads': num_reads,
-        'num_bases': num_bases,
-        'q30_percent': q30_percent,
-        'q30_percent_last_25_bases': q30_percent_last_25_bases,
-        'md5': file_hash.hexdigest(),
-        'file_size_mb': file_size_mb,
+
+    fastq_stats = {
+        'num_reads_' + read_type.lower(): num_reads,
+        'num_bases_' + read_type.lower(): num_bases,
+        'q30_percent_' + read_type.lower(): q30_percent,
+        'q30_percent_last_25_bases_' + read_type.lower(): q30_percent_last_25_bases,
+        'fastq_md5_' + read_type.lower(): file_hash.hexdigest(),
+        'fastq_file_size_mb_' + read_type.lower(): file_size_mb,
+    }
+    fastq_stats_summary = {
+        'library_id': library_id,
+        'read_type': read_type,
+        'fastq_stats': fastq_stats,
     }
 
-    return stats
+    return fastq_stats_summary
 
 
 def find_fastq_output_dir(demultiplexing_output_dir, instrument_model):
@@ -215,9 +235,10 @@ def find_fastq_output_dir(demultiplexing_output_dir, instrument_model):
     return fastq_dir
 
 
-def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demultiplexing_output_dir, project_id_translation, collect_fastq_stats=False):
+def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demultiplexing_output_dir, project_id_translation, collect_fastq_stats=False, num_fastq_stats_processes=1):
     """
     Get the sequenced libraries from a samplesheet.
+    TODO: Separate out the FASTQ statistics collection more cleanly.
 
     :param samplesheet: Samplesheet
     :type samplesheet: dict[str, object]
@@ -227,6 +248,10 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
     :type demultiplexing_output_dir: str
     :param project_id_translation: Project ID translation
     :type project_id_translation: dict[str, str]
+    :param collect_fastq_stats: Collect FASTQ statistics
+    :type collect_fastq_stats: bool
+    :param num_fastq_stats_processes: Number of FASTQ statistics processes
+    :type num_fastq_stats_processes: int
     :return: Sequenced libraries. Each library is a dictionary with keys: ['library_id', 'project_id_samplesheet', 'project_id_translated',
                                                                            'index', 'index2', 'fastq_filename_r1', 'fastq_filaname_r2', ...]
     :rtype: list[dict[str, object]]
@@ -315,10 +340,6 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             fastq_filename_r1 = None
             fastq_path_r2 = None
             fastq_filename_r2 = None
-            fastq_stats_r1 = {}
-            fastq_stats_r2 = {}
-            num_reads = None
-            num_bases = None
             fastq_paths_r1 = glob.glob(os.path.join(fastq_dir, library_id + '_*_R1_*.fastq.gz'))
             if len(fastq_paths_r1) > 0:
                 fastq_path_r1 = fastq_paths_r1[0]
@@ -329,75 +350,95 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                         sample_number = int(sample_number_match.group(1).replace('S', '').lstrip('0'))
                     except ValueError as e:
                         pass
-                if collect_fastq_stats:
-                    fastq_stats_r1 = get_fastq_stats(fastq_path_r1)
-                else:
-                    fastq_stats_r1 = {}
-                if 'num_reads' in fastq_stats_r1 and fastq_stats_r1['num_reads'] is not None:
-                    if num_reads is None:
-                        num_reads = 0
-                    num_reads += fastq_stats_r1['num_reads']
-                if 'num_bases' in fastq_stats_r1 and fastq_stats_r1['num_bases'] is not None:
-                    if num_bases is None:
-                        num_bases = 0
-                    num_bases += fastq_stats_r1['num_bases']
                 libraries_by_library_id[library_id]['fastq_filename_r1'] = fastq_filename_r1
-                libraries_by_library_id[library_id]['fastq_md5_r1'] = fastq_stats_r1.get('md5', None)
-                libraries_by_library_id[library_id]['q30_percent_r1'] = fastq_stats_r1.get('q30_percent', None)
-                libraries_by_library_id[library_id]['q30_percent_last_25_bases_r1'] = fastq_stats_r1.get('q30_percent_last_25_bases', None)
-                libraries_by_library_id[library_id]['fastq_file_size_mb_r1'] = fastq_stats_r1.get('file_size_mb', None)
 
             fastq_paths_r2 = glob.glob(os.path.join(fastq_dir, library_id + '_*_R2_*.fastq.gz'))
             if len(fastq_paths_r2) > 0:
                 fastq_path_r2 = fastq_paths_r2[0]
                 fastq_filename_r2 = os.path.basename(fastq_path_r2)
-                if collect_fastq_stats:
-                    fastq_stats_r2 = get_fastq_stats(fastq_path_r2)
-                else:
-                    fastq_stats_r2 = {}
-                if 'num_reads' in fastq_stats_r2 and fastq_stats_r2['num_reads'] is not None:
-                    if num_reads is None:
-                        num_reads = 0
-                    num_reads += fastq_stats_r2['num_reads']
-                if 'num_bases' in fastq_stats_r2 and fastq_stats_r2['num_bases'] is not None:
-                    if num_bases is None:
-                        num_bases = 0
-                    num_bases += fastq_stats_r2['num_bases']
                 libraries_by_library_id[library_id]['fastq_filename_r2'] = fastq_filename_r2
-                libraries_by_library_id[library_id]['fastq_md5_r2'] = fastq_stats_r2.get('md5', None)
-                libraries_by_library_id[library_id]['q30_percent_r2'] = fastq_stats_r2.get('q30_percent', None)
-                libraries_by_library_id[library_id]['q30_percent_last_25_bases_r2'] = fastq_stats_r2.get('q30_percent_last_25_bases', None)
-                libraries_by_library_id[library_id]['fastq_file_size_mb_r2'] = fastq_stats_r2.get('file_size_mb', None)
-
-            required_keys = ['num_bases', 'q30_percent']
-            q30_percent_overall = None
-            if all([key in fastq_stats_r1 for key in required_keys] + [key in fastq_stats_r2 for key in required_keys]):
-                q30_percent_overall = round((fastq_stats_r1['num_bases'] * fastq_stats_r1['q30_percent'] +
-                                          fastq_stats_r2['num_bases'] * fastq_stats_r2['q30_percent']) /
-                                         (fastq_stats_r1['num_bases'] + fastq_stats_r2['num_bases']), 4)
-
-            required_keys = ['num_reads', 'q30_percent_last_25_bases']
-            q30_percent_last_25_bases_overall = None
-            if all([key in fastq_stats_r1 for key in required_keys] + [key in fastq_stats_r2 for key in required_keys]):
-                num_bases_r1 = fastq_stats_r1['num_reads'] * 25
-                num_q30_bases_in_last_25_bases_r1 = (fastq_stats_r1['q30_percent_last_25_bases'] / 100) * num_bases_r1
-                num_bases_r2 = fastq_stats_r2['num_reads'] * 25
-                num_q30_bases_in_last_25_bases_r2 = (fastq_stats_r2['q30_percent_last_25_bases'] / 100) * num_bases_r2
-                num_q30_bases_in_last_25_bases_total = num_q30_bases_in_last_25_bases_r1 + num_q30_bases_in_last_25_bases_r2
-                num_bases_total = num_bases_r1 + num_bases_r2
-                try:
-                    q30_percent_last_25_bases_overall = round((num_q30_bases_in_last_25_bases_total / num_bases_total * 100), 4)
-                except (ZeroDivisionError, ValueError) as e:
-                    pass
-                
+    
             libraries_by_library_id[library_id]['sample_number'] = sample_number
-            libraries_by_library_id[library_id]['num_reads'] = num_reads
-            libraries_by_library_id[library_id]['num_bases'] = num_bases
-            libraries_by_library_id[library_id]['q30_percent'] = q30_percent_overall
-            libraries_by_library_id[library_id]['q30_percent_last_25_bases'] = q30_percent_last_25_bases_overall
-                
-    sequenced_libraries = list(libraries_by_library_id.values())
 
+    # Collect fastq stast in parallel
+    # TODO: This part should be factored out into a separate function.
+    if collect_fastq_stats:
+        pool = multiprocessing.Pool(processes=num_fastq_stats_processes)
+        get_fastq_stats_inputs = []
+        for library_id, library in libraries_by_library_id.items():
+            if 'fastq_filename_r1' in library and library['fastq_filename_r1'] is not None:
+                fastq_path_r1 = os.path.join(fastq_dir, library['fastq_filename_r1'])
+                if os.path.exists(fastq_path_r1):
+                    get_fastq_stats_input = {
+                        'fastq_path': fastq_path_r1,
+                        'library_id': library_id,
+                        'read_type': "R1"
+                    }
+                    get_fastq_stats_inputs.append(get_fastq_stats_input)
+            if 'fastq_filename_r2' in library and library['fastq_filename_r2'] is not None:
+                fastq_path_r2 = os.path.join(fastq_dir, library['fastq_filename_r2'])
+                if os.path.exists(fastq_path_r2):
+                    get_fastq_stats_input = {
+                        'fastq_path': fastq_path_r2,
+                        'library_id': library_id,
+                        'read_type': "R2"
+                    }
+                    get_fastq_stats_inputs.append(get_fastq_stats_input)
+
+        timestamp_collect_fastq_stats_start = datetime.datetime.now()
+        logging.info(json.dumps({
+            'event_type': 'collect_fastq_stats_start',
+            'fastq_dir': os.path.abspath(fastq_dir),
+            'num_fastq_stats_inputs': len(get_fastq_stats_inputs)
+        }))
+        fastq_stats = pool.starmap(get_fastq_stats, [(input['fastq_path'], input['library_id'], input['read_type']) for input in get_fastq_stats_inputs])
+        pool.close()
+        pool.join()
+        timestamp_collect_fastq_stats_complete = datetime.datetime.now()
+        logging.info(json.dumps({
+            'event_type': 'collect_fastq_stats_complete',
+            'fastq_dir': os.path.abspath(fastq_dir),
+            'fastq_files_stats_collected': len(fastq_stats),
+            'collect_fastq_stats_duration_seconds': (timestamp_collect_fastq_stats_complete - timestamp_collect_fastq_stats_start).total_seconds()
+        }))
+
+        fastq_stats_by_library_id = {}
+        for fastq_stat in fastq_stats:
+            library_id = fastq_stat['library_id']
+            read_type = fastq_stat['read_type']
+            if library_id not in fastq_stats_by_library_id:
+                fastq_stats_by_library_id[library_id] = {}
+            fastq_stats_by_library_id[library_id].update(fastq_stat['fastq_stats'])
+
+        for library_id, fastq_stats in fastq_stats_by_library_id.items():
+            num_bases_total = fastq_stats['num_bases_r1'] + fastq_stats['num_bases_r2']
+            num_reads_total = fastq_stats['num_reads_r1'] + fastq_stats['num_reads_r2']
+            q30_percent_r1 = fastq_stats['q30_percent_r1']
+            q30_percent_r2 = fastq_stats['q30_percent_r2']
+            num_q30_bases_r1 = round(fastq_stats['num_bases_r1'] * q30_percent_r1 / 100)
+            num_q30_bases_r2 = round(fastq_stats['num_bases_r2'] * q30_percent_r2 / 100)
+            num_q30_bases_total = num_q30_bases_r1 + num_q30_bases_r2
+            q30_percent_total = round(num_q30_bases_total / num_bases_total * 100, 4)
+            q30_percent_last_25_bases_r1 = fastq_stats['q30_percent_last_25_bases_r1']
+            q30_percent_last_25_bases_r2 = fastq_stats['q30_percent_last_25_bases_r2']
+            num_bases_last_25_r1 = fastq_stats['num_reads_r1'] * 25
+            num_bases_last_25_r2 = fastq_stats['num_reads_r2'] * 25
+            num_bases_last_25_total = num_bases_last_25_r1 + num_bases_last_25_r2
+            num_q30_bases_last_25_r1 = round(num_bases_last_25_r1 * q30_percent_last_25_bases_r1 / 100)
+            num_q30_bases_last_25_r2 = round(num_bases_last_25_r2 * q30_percent_last_25_bases_r2 / 100)
+            num_q30_bases_last_25_total = num_q30_bases_last_25_r1 + num_q30_bases_last_25_r2
+            q30_percent_last_25_bases_total = round(num_q30_bases_last_25_total / num_bases_last_25_total * 100, 4)
+            fastq_stats_by_library_id[library_id]['num_reads'] = num_reads_total
+            fastq_stats_by_library_id[library_id]['num_bases'] = num_bases_total
+            fastq_stats_by_library_id[library_id]['q30_percent'] = q30_percent_total
+            fastq_stats_by_library_id[library_id]['q30_percent_last_25_bases'] = q30_percent_last_25_bases_total
+
+        for library_id, library in libraries_by_library_id.items():
+            library.update(fastq_stats_by_library_id[library_id])
+
+    sequenced_libraries = list(libraries_by_library_id.values())
+            
+            
     return sequenced_libraries
 
 

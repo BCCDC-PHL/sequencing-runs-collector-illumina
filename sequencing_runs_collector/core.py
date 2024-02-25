@@ -199,7 +199,8 @@ def collect_illumina_run(config, run):
                 sequencing_run['experiment_name'] = parsed_samplesheet.get('header', {}).get('run_name', None)
 
             collect_fastq_stats = config.get('collect_fastq_stats', False)
-            sequenced_libraries = illumina.get_sequenced_libraries_from_samplesheet(parsed_samplesheet, instrument['instrument_model'], demultiplexing_output_dir, config['project_id_translation'], collect_fastq_stats)
+            num_fastq_stats_collection_processes = config.get('num_fastq_stats_collection_processes', 1)
+            sequenced_libraries = illumina.get_sequenced_libraries_from_samplesheet(parsed_samplesheet, instrument['instrument_model'], demultiplexing_output_dir, config['project_id_translation'], collect_fastq_stats, num_fastq_stats_collection_processes)
             demultiplexing['sequenced_libraries'] = sequenced_libraries
 
         sequencing_run['demultiplexings'].append(demultiplexing)
