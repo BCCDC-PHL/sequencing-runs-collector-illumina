@@ -427,7 +427,7 @@ def choose_samplesheet_to_parse(samplesheet_paths: list[str], instrument_type: s
     samplesheet_to_parse = None
     if instrument_model == 'MISEQ':
         for samplesheet_path in samplesheet_paths:
-            if re.match("SampleSheet\.csv", os.path.basename(samplesheet_path)):
+            if re.match("SampleSheet\\.csv", os.path.basename(samplesheet_path)):
                 samplesheet_to_parse = samplesheet_path
         if not samplesheet_to_parse:
             if len(samplesheet_paths) == 1:
@@ -439,7 +439,7 @@ def choose_samplesheet_to_parse(samplesheet_paths: list[str], instrument_type: s
     elif instrument_model == 'NEXTSEQ':
         samplesheets_by_analysis_num = {}
         for samplesheet_path in samplesheet_paths:
-            match = re.search("Analysis/(\d+)/Data", samplesheet_path)
+            match = re.search("Analysis/(\\d+)/Data", samplesheet_path)
             if match:
                 analysis_num = int(match.group(1))
                 samplesheets_by_analysis_num[analysis_num] = samplesheet_path
@@ -516,7 +516,7 @@ def samplesheet_to_sequenced_libraries(parsed_samplesheet, instrument_model):
                 }
                 # The library ID that we want is sometimes under 'sample_id' and sometimes under 'sample_name'
                 # The instrument will automatically label samples using an ID like 'S1', 'S2', etc in the other field.
-                if re.match("S\d+$", data_record['sample_id']):
+                if re.match("S\\d+$", data_record['sample_id']):
                     sequenced_library['id'] = data_record['sample_name']
                 else:
                     sequenced_library['id'] = data_record['sample_id']

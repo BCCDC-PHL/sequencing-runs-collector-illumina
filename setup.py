@@ -1,24 +1,20 @@
 from setuptools import setup, find_packages
 
-import sequencing_runs_collector
-
 setup(
     name='sequencing-runs-collector',
-    version=sequencing_runs_collector.__version__,
+    version="0.1.0",
     description='',
     author='Dan Fornika',
     author_email='dan.fornika@bccdc.ca',
     url='https://github.com/BCCDC-PHL/sequencing-runs-collector',
     packages=find_packages(exclude=('tests', 'tests.*')),
-    python_requires='>=3.10,<3.12',
+    python_requires='>=3.10,<3.14',
     install_requires=[
         "jsonschema",
-        "xmltodict==0.13.0",
-        "interop==1.3.1",
-        "pyfastx==2.0.2",
-        "pytz==2023.3",
-        "pytest==7.3.0",
-        "requests==2.31.0",
+        "xmltodict==0.14.2",
+        "interop==1.5.0",
+        "pyfastx==2.2.0",
+        "pytz==2023.3"
     ],
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=[

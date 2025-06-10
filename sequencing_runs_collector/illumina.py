@@ -13,8 +13,8 @@ import sequencing_runs_collector.parsers.interop as interop
 import sequencing_runs_collector.parsers.runinfo as runinfo
 
 
-MISEQ_RUN_ID_REGEX = "\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"
-NEXTSEQ_RUN_ID_REGEX = "\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"
+MISEQ_RUN_ID_REGEX = "\\d{6}_M\\d{5}_\\d+_\\d{9}-[A-Z0-9]{5}"
+NEXTSEQ_RUN_ID_REGEX = "\\d{6}_VH\\d{5}_\\d+_[A-Z0-9]{9}"
 
 def get_illumina_interop_summary(run_dir):
     """
@@ -56,7 +56,7 @@ def find_demultiplexing_output_dirs(run_dir, instrument_model):
             for alignment_dir in alignment_dirs:
                 timestamp_dirs = glob.glob(os.path.join(alignment_dir, '*'))
                 for timestamp_dir in timestamp_dirs:
-                    if re.match("\d+_\d", os.path.basename(timestamp_dir)):
+                    if re.match("\\d+_\\d", os.path.basename(timestamp_dir)):
                         demultiplexing_output_dirs.append(timestamp_dir)
         else:
             # The 'old' MiSeq output directory is always 'Data/Intensities/BaseCalls'
@@ -275,8 +275,8 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
     for sample in samplesheet[samples_section_key]:
         library = {}
         
-        if (re.match("S\d+$", sample['sample_id']) or re.match("\d+$", sample['sample_id'])):
-            if 'sample_name' in sample and not (re.match("S\d+$", sample['sample_name']) or re.match("\d+$", sample['sample_name'])):
+        if (re.match("S\\d+$", sample['sample_id']) or re.match("\\d+$", sample['sample_id'])):
+            if 'sample_name' in sample and not (re.match("S\\d+$", sample['sample_name']) or re.match("\\d+$", sample['sample_name'])):
                 library_id_key = "sample_name"
             else:
                 library_id_key = "sample_id"
@@ -285,7 +285,8 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
 
         samplesheet_library_id = sample[library_id_key]
         cleaned_library_id = samplesheet_library_id.replace("_", "-")
-        if os.path.exists(os.path.join(fastq_dir, samplesheet_library_id + '_S*_L*_R1_001.fastq.gz')):
+        r1_fastq_glob = os.path.join(fastq_dir, f"{samplesheet_library_id}_S*_L*_R1_001.fastq.gz")
+        if os.path.exists(r1_fastq_glob):
             library_id = samplesheet_library_id
         else:
             library_id = cleaned_library_id
@@ -320,8 +321,8 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                         libraries_by_library_id[library_id]['index2'] = sample['index2']
                     
             else:
-                if (re.match("S\d+$", sample['sample_id']) or re.match("\d+$", sample['sample_id'])):
-                    if 'sample_name' in sample and not (re.match("S\d+$", sample['sample_name']) or re.match("\d+$", sample['sample_name'])):
+                if (re.match("S\\d+$", sample['sample_id']) or re.match("\\d+$", sample['sample_id'])):
+                    if 'sample_name' in sample and not (re.match("S\\d+$", sample['sample_name']) or re.match("\\d+$", sample['sample_name'])):
                         library_id_key = "sample_name"
                     else:
                         library_id_key = "sample_id"
@@ -341,7 +342,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
             fastq_path_r2 = None
             fastq_filename_r2 = None
 
-            fastq_paths_r1 = glob.glob(os.path.join(fastq_dir, library_id + '_*_R1_*.fastq.gz'))
+            fastq_paths_r1 = glob.glob(os.path.join(fastq_dir, f"{library_id}_*_R1_*.fastq.gz"))
             if len(fastq_paths_r1) > 0:
                 fastq_path_r1 = fastq_paths_r1[0]
                 fastq_filename_r1 = os.path.basename(fastq_path_r1)
@@ -353,7 +354,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                         pass
                 libraries_by_library_id[library_id]['fastq_filename_r1'] = fastq_filename_r1
 
-            fastq_paths_r2 = glob.glob(os.path.join(fastq_dir, library_id + '_*_R2_*.fastq.gz'))
+            fastq_paths_r2 = glob.glob(os.path.join(fastq_dir, f"{library_id}_*_R2_*.fastq.gz"))
             if len(fastq_paths_r2) > 0:
                 fastq_path_r2 = fastq_paths_r2[0]
                 fastq_filename_r2 = os.path.basename(fastq_path_r2)
@@ -361,7 +362,7 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
     
             libraries_by_library_id[library_id]['sample_number'] = sample_number
 
-    # Collect fastq stast in parallel
+    # Collect fastq stats in parallel
     # TODO: This part should be factored out into a separate function.
     if collect_fastq_stats:
         pool = multiprocessing.Pool(processes=num_fastq_stats_processes)

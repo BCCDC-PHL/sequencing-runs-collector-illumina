@@ -1,11 +1,11 @@
+import csv
 import json
 import logging
 import os
 import re
-import requests
 
 from typing import Iterable, Optional
-
+from pathlib import Path
 
 import sequencing_runs_collector.illumina as illumina
 import sequencing_runs_collector.nanopore as nanopore
@@ -74,7 +74,7 @@ def run_id_to_date(run_id):
 def find_runs(config: dict[str, object]) -> Iterable[Optional[dict[str, object]]]:
     """
     Find all sequencing runs under all of the `run_parent_dirs` from the config.
-    Runs are found by matching sub-directory names against the following regexes: `"\d{6}_M\d{5}_\d+_\d{9}-[A-Z0-9]{5}"` (MiSeq) and `"\d{6}_VH\d{5}_\d+_[A-Z0-9]{9}"` (NextSeq)
+    Runs are found by matching sub-directory names against the following regexes: `"\\d{6}_M\\d{5}_\\d+_\\d{9}-[A-Z0-9]{5}"` (MiSeq) and `"\\d{6}_VH\\d{5}_\\d+_[A-Z0-9]{9}"` (NextSeq)
 
     :param config: Application config.
     :type config: dict[str, object]
@@ -208,67 +208,98 @@ def collect_illumina_run(config, run):
     return sequencing_run
 
 
-def submit_illumina_run(config, run):
+def collect_nanopore_run(config, run):
     """
     """
-    base_url = config.get('api_root', None)
-    api_token = config.get('api_token', None)
-    response = None
-    run_id = run.get('id', None)
-    if base_url is not None and api_token is not None:
-        base_url = base_url.rstrip('/')
-        headers = {
-            'Authorization': "Bearer " + api_token,
-            'Content-Type': 'application/vnd.api+json',
-            'Accept': 'application/vnd.api+json',
-        }
-        url = '/'.join([base_url, 'sequencing-runs', 'illumina'])
-        try:
-            request_body = {
-                'data': run,
-                'links': {},
-            }
-            if config['dry_run']:
-                print(json.dumps(request_body, indent=2))
-            else:
-                response = requests.post(url, headers=headers, json=request_body)
-        except requests.exceptions.ConnectionError as e:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'error_message': str(e)}))
-    if response is not None:
-        if response.ok:
-            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
-        else:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
+    sequencing_run = {}
+
+    return sequencing_run
 
 
-def submit_nanopore_run(config, run):
+def write_collected_illumina_run(collected_run: dict, run_output_path: Path):
     """
     """
-    base_url = config.get('api_root', None)
-    api_token = config.get('api_token', None)
-    response = None
-    run_id = run.get('id', None)
-    if base_url is not None and api_token is not None:
-        base_url = base_url.rstrip('/')
-        headers = {
-            'Authorization': "Bearer " + api_token,
-            'Content-Type': 'application/vnd.api+json',
-            'Accept': 'application/vnd.api+json',
-        }
-        url = '/'.join([base_url, 'sequencing-runs', 'nanopore'])
-        try:
-            request_body = {
-                'data': run,
-                'links': {},
-            }
-            if config['dry_run']:
-                print(json.dumps(request_body, indent=2))
-            else:
-                response = requests.post(url, headers=headers, json=request_body)
-        except requests.exceptions.ConnectionError as e:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'error_message': str(e)}))
-    if response is not None:
-        if response.ok:
-            logging.info(json.dumps({'event_type': 'run_submission_succeeded', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
-        else:
-            logging.error(json.dumps({'event_type': 'run_submission_failed', 'sequencing_run_id': run_id, 'status_code': response.status_code, 'reason': response.reason}))
+    sequencing_run_id = collected_run['sequencing_run_id']
+
+    run_summary_output_fieldnames = [
+        "sequencing_run_id",
+        "flowcell_id",
+        "run_date",
+        "instrument_id",
+        "experiment_name",
+        "num_cycles_r1",
+        "num_cycles_r2",
+        "cluster_count",
+        "cluster_count_passed_filter",
+        "error_rate",
+        "first_cycle_intensity",
+        "percent_aligned",
+        "q30_percent",
+        "projected_yield_gigabases",
+        "yield_gigabases",
+        "num_reads",
+        "num_reads_passed_filter",
+        "percent_clusters_passed_filter",
+        "cluster_density",
+        "cluster_density_passed_filter",
+    ]
+
+    run_summary_output_path = os.path.join(run_output_path, f"{sequencing_run_id}_run_summary.csv")
+    with open(run_summary_output_path, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=run_summary_output_fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerow(collected_run)
+
+    run_demultiplexings_output_path = os.path.join(run_output_path, 'demultiplexings')
+    os.makedirs(run_demultiplexings_output_path, exist_ok=True)
+
+    demultiplexing_output_fieldnames = [
+        "sequencing_run_id",
+        "demultiplexing_id",
+        "library_id",
+        "project_id_samplesheet",
+        "project_id_translated",
+        "index",
+        "index2",
+        "fastq_filename_r1",
+        "fastq_filename_r2",
+        "sample_number",
+        "q30_percent_r1",
+        "q30_percent_last_25_bases_r1",
+        "fastq_md5_r1",
+        "fastq_file_size_mb_r1",
+        "q30_percent_r2",
+        "q30_percent_last_25_bases_r2",
+        "fastq_md5_r2",
+        "fastq_file_size_mb_r2",
+        "num_reads",
+        "num_bases",
+        "q30_percent",
+        "q30_percent_last_25_bases",
+    ]
+    for demultiplexing in collected_run['demultiplexings']:
+        demultiplexing_id = demultiplexing['demultiplexing_id']
+        demultiplexing_output_path = os.path.join(
+            run_demultiplexings_output_path,
+            f"{sequencing_run_id}_demultiplexing_{demultiplexing_id}.csv",
+        )
+
+        
+        with open(demultiplexing_output_path, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=demultiplexing_output_fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
+            writer.writeheader()
+            for sequenced_library in demultiplexing['sequenced_libraries']:
+                sequenced_library['sequencing_run_id'] = sequencing_run_id
+                sequenced_library['demultiplexing_id'] = demultiplexing_id
+                writer.writerow(sequenced_library)
+            
+        
+
+    
+def write_collected_nanopore_run(collected_run: dict, output_dir: Path):
+    """
+    """
+    
+    sequencing_run_id = collected_run['sequencing_run_id']
+
+    

@@ -2,11 +2,19 @@ import json
 import os
 import csv
 
-def load_config(config_path: str, dry_run=False) -> dict[str, object]:
+from pathlib import Path
+
+def load_config(config_path: Path) -> dict[str, object]:
+    """
+    Load the app config from JSON file
+
+    :param config_path: Path to config file
+    :type config_path: Path
+    :return: App config
+    :rtype: dict
+    """
     with open(config_path, 'r') as f:
         config = json.load(f)
-
-    config['dry_run'] = dry_run
 
     config['project_id_translation'] = {}
 
