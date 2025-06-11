@@ -6,9 +6,7 @@
     "local_timezone": "America/Vancouver",
     "project_id_translation_file": "project_id_translation.csv",
     "scan_interval_seconds": 10,
-    "api_root": "http://localhost:8080/",
-    "api_token": "supersecret",
-    "submit": false,
-    "write_to_file": true,
+    "collect_fastq_stats": true,
+    "num_fastq_stats_collection_processes": 16,
     "output_directory": "test_output"
 }
