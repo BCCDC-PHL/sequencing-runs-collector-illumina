@@ -8,10 +8,12 @@ import logging
 import os
 import time
 
+from pathlib import Path
+
 import sequencing_runs_collector.config
 import sequencing_runs_collector.core as core
 
-DEFAULT_SCAN_INTERVAL_SECONDS = 3600.0
+DEFAULT_SCAN_INTERVAL_SECONDS = 3600
 
 def main():
     parser = argparse.ArgumentParser()
@@ -102,7 +104,7 @@ def main():
                             }))
                             continue
                         
-                        run_output_dir = os.path.join(str(config['output_directory']), 'illumina', str(run['run_id']))
+                        run_output_dir = Path(os.path.join(str(config['output_directory']), 'illumina', str(run['run_id'])))
                         os.makedirs(run_output_dir)
                         core.write_collected_illumina_run(collected_run, run_output_dir)
                         logging.info(json.dumps({
