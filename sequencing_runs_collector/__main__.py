@@ -87,14 +87,14 @@ def main():
                         timestamp_collect_run_start = datetime.datetime.now()
                         logging.info(json.dumps({
                             'event_type': 'collect_run_start',
-                            'run_id': run['run_id'],
+                            'sequencing_run_id': run['run_id'],
                             'run_dir': run['run_dir']
                         }))
                         collected_run = core.collect_illumina_run(config, run)
                         timestamp_collect_run_complete = datetime.datetime.now()
                         logging.info(json.dumps({
                             'event_type': 'collect_run_complete',
-                            'run_id': run['run_id'],
+                            'sequencing_run_id': run['run_id'],
                             'collect_run_duration_seconds': (timestamp_collect_run_complete - timestamp_collect_run_start).total_seconds()
                         }))
                         if collected_run is None:
@@ -109,7 +109,7 @@ def main():
                         core.write_collected_illumina_run(collected_run, run_output_dir)
                         logging.info(json.dumps({
                             'event_type': 'run_data_written',
-                            'run_id': run['run_id'],
+                            'sequencing_run_id': run['run_id'],
                             'output_dir': os.path.abspath(run_output_dir)
                         }))
 
@@ -122,12 +122,12 @@ def main():
                             }))
                             continue
 
-                        run_output_dir = os.path.join(str(config['output_directory']), 'nanopore', str(run['run_id']))
+                        run_output_dir = Path(os.path.join(str(config['output_directory']), 'nanopore', str(run['run_id'])))
                         os.makedirs(run_output_dir)
                         core.write_collected_nanopore_run(collected_run, run_output_dir)
                         logging.info(json.dumps({
                             'event_type': 'run_data_written',
-                            'run_id': run['run_id'],
+                            'sequencing_run_id': run['run_id'],
                             'output_dir': os.path.abspath(run_output_dir)
                         }))
                 if quit_when_safe:

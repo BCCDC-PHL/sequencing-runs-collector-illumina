@@ -212,6 +212,54 @@ def collect_nanopore_run(config, run):
     """
     """
     sequencing_run = {}
+    sequencing_run_id = run['run_id']
+    instrument_type = run['instrument_type']
+    instrument_model = run['instrument_model']
+    run_dir = run['run_dir']
+
+    sequencing_run['sequencing_run_id'] = sequencing_run_id
+
+    run_date = run_id_to_date(sequencing_run_id)
+    sequencing_run['run_date'] = run_date
+
+    samplesheet_path = nanopore.find_samplesheet(run_dir, instrument_model)
+    if not samplesheet_path:
+        logging.error(json.dumps({
+            'event_type': 'failed_to_find_samplesheet',
+            'sequencing_run_id': sequencing_run_id,
+            'run_dir': run_dir,
+        }))
+        return sequencing_run
+    
+    parsed_samplesheet = samplesheet.parse_samplesheet(samplesheet_path, instrument_type, instrument_model)
+    if not parsed_samplesheet:
+        logging.error(json.dumps({
+            'event_type': 'failed_to_parse_samplesheet',
+            'sequencing_run_id': sequencing_run_id,
+            'run_dir': run_dir,
+        }))
+        return sequencing_run
+
+    sequencing_run['sequenced_libraries'] = []
+    for samplesheet_row in parsed_samplesheet:
+        sequenced_library = {
+            'alias': samplesheet_row.get('alias', None),
+            'library_id': samplesheet_row.get('library_id', None),
+            'project_id': samplesheet_row.get('project_id', None),
+            'barcode': samplesheet_row.get('barcode', None),
+        }
+        sequencing_run['sequenced_libraries'].append(sequenced_library)
+    
+    report_json_path = nanopore.find_report_json(run_dir, instrument_type)
+    if not report_json_path:
+        logging.error(json.dumps({
+            'event_type': 'failed_to_find_report_json',
+            'sequencing_run_id': sequencing_run_id,
+            'run_dir': run_dir,
+        }))
+        return sequencing_run
+        
+    parsed_report_json = nanopore.parse_report_json(report_json_path)
 
     return sequencing_run
 
@@ -296,10 +344,27 @@ def write_collected_illumina_run(collected_run: dict, run_output_path: Path):
         
 
     
-def write_collected_nanopore_run(collected_run: dict, output_dir: Path):
+def write_collected_nanopore_run(collected_run: dict, run_output_path: Path):
     """
     """
     
     sequencing_run_id = collected_run['sequencing_run_id']
 
+    run_summary_output_fieldnames = [
+        'sequencing_run_id',
+        'flowcell_id',
+        'flowcell_product_code',
+        'run_date',
+        'instrument_id',
+        'protocol_id',
+        'protocol_run_id',
+        'flowcell_channel_count'
+    ]
     
+
+    run_summary_output_path = os.path.join(run_output_path, f"{sequencing_run_id}_run_summary.csv")
+    print(json.dumps(collected_run, indent=2))
+    with open(run_summary_output_path, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=run_summary_output_fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerow(collected_run)
