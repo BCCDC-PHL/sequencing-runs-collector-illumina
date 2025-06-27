@@ -1,3 +1,4 @@
+import csv
 import datetime
 import glob
 import json
@@ -8,6 +9,9 @@ import os
 import re
 
 import pyfastx
+
+from pathlib import Path
+from typing import Optional
 
 import sequencing_runs_collector.parsers.interop as interop
 import sequencing_runs_collector.parsers.runinfo as runinfo
@@ -66,7 +70,7 @@ def find_demultiplexing_output_dirs(run_dir, instrument_model):
     return demultiplexing_output_dirs
 
 
-def get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument_model):
+def get_demultiplexing_num(run_id, demultiplexing_output_dir, instrument_model):
     """
     Get the demultiplexing ID for a run.
 
@@ -76,25 +80,60 @@ def get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument_model):
     :type demultiplexing_output_dir: str
     :param instrument_model: Instrument model ("MISEQ" or "NEXTSEQ")
     :type instrument_model: str
-    :return: Demultiplexing ID
-    :rtype: str
+    :return: Demultiplexing Num
+    :rtype: int
     """
-    demultiplexing_id = None
+    demultiplexing_num = None
     if instrument_model == 'NEXTSEQ':
         demultiplexing_output_dir_basename = os.path.basename(demultiplexing_output_dir)
-        demultiplexing_id = demultiplexing_output_dir_basename
+        try:
+            demultiplexing_num = int(demultiplexing_output_dir_basename)
+        except ValueError as e:
+            pass
     elif instrument_model == 'MISEQ':
         demultiplexing_output_dir_basename = os.path.basename(demultiplexing_output_dir)
         if demultiplexing_output_dir_basename == 'BaseCalls':
-            demultiplexing_id = "1"
+            demultiplexing_num = 1
         else:
             demultiplexing_parent_dir_basename = os.path.basename(os.path.abspath(os.path.join(demultiplexing_output_dir, os.pardir)))
             demultiplexing_parent_dir_basename_split = demultiplexing_parent_dir_basename.split('_')
             if len(demultiplexing_parent_dir_basename_split) > 1:
-                demultiplexing_num = demultiplexing_parent_dir_basename_split[-1]
-                demultiplexing_id = str(demultiplexing_num)
+                demultiplexing_num_str = demultiplexing_parent_dir_basename_split[-1]
+                try:
+                    demultiplexing_num = int(demultiplexing_num_str)
+                except ValueError as e:
+                    pass
 
-    return demultiplexing_id
+    return demultiplexing_num
+
+
+def get_demultiplexing_start_timestamp(run_id:str, demultiplexing_output_dir: Path, instrument_model: str) -> Optional[str]:
+    """
+    Get a timestamp for when the demultiplexing was started.
+
+    :param run_id: Run ID
+    :type run_id: str
+    :param demultiplexing_output_dir: Demultiplexing output directory
+    :type demultiplexing_output_dir: str
+    :param instrument_model: Instrument model ("MISEQ" or "NEXTSEQ")
+    :type instrument_model: str
+    :return: Demultiplexing start timestamp
+    :rtype: Optional[str]
+    """
+    demultiplexing_start_timestamp = None
+    if instrument_model == 'NEXTSEQ':
+        dmx_dragen_events_path = os.path.join(demultiplexing_output_dir, 'Data', 'dmx_dragen_events.csv')
+        if os.path.exists(dmx_dragen_events_path):
+            with open(dmx_dragen_events_path, 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row['label'] == 'DRAGEN START':
+                        demultiplexing_start_timestamp = row['time']
+
+    elif instrument_model == 'MISEQ':
+        pass
+
+    return demultiplexing_start_timestamp
 
 
 def find_samplesheet(demultiplexing_output_dir, instrument_model):

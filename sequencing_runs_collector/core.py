@@ -177,11 +177,18 @@ def collect_illumina_run(config, run):
     for demultiplexing_output_dir in demultiplexing_output_dirs:
         demultiplexing = {
             'demultiplexing_id': None,
+            'demultiplexing_num': None,
             'samplesheet_path': None,
+            'fastq_dir_path': None,
+            'timestamp_demultiplexing_started': None,
             'sequenced_libraries': [],
         }
-        demultiplexing_id = illumina.get_demultiplexing_id(run_id, demultiplexing_output_dir, instrument['instrument_model'])
+        demultiplexing_num = illumina.get_demultiplexing_num(run_id, demultiplexing_output_dir, instrument['instrument_model'])
+        demultiplexing['demultiplexing_num'] = demultiplexing_num
+        demultiplexing_id = '-'.join([run_id, "DEMUX", str(demultiplexing_num)])
         demultiplexing['demultiplexing_id'] = demultiplexing_id
+        demultiplexing_start_timestamp = illumina.get_demultiplexing_start_timestamp(run_id, Path(demultiplexing_output_dir), instrument['instrument_model'])
+        demultiplexing['timestamp_demultiplexing_started'] = demultiplexing_start_timestamp
         samplesheet_path = illumina.find_samplesheet(demultiplexing_output_dir, instrument['instrument_model'])
         if samplesheet_path is not None:
             samplesheet_path_relative = os.path.relpath(samplesheet_path, run_dir)
@@ -190,7 +197,7 @@ def collect_illumina_run(config, run):
         demultiplexing['samplesheet_path'] = samplesheet_path_relative
         fastq_dir = illumina.find_fastq_output_dir(demultiplexing_output_dir, instrument['instrument_model'])
         demultiplexing['fastq_dir_path'] = os.path.relpath(fastq_dir, run_dir)
-        
+
         if samplesheet_path is not None:
             parsed_samplesheet = samplesheet.parse_samplesheet(samplesheet_path, instrument['instrument_type'], instrument['instrument_model'])
             if instrument['instrument_model'].upper() == "MISEQ":
@@ -304,6 +311,14 @@ def write_collected_illumina_run(collected_run: dict, run_output_path: Path):
     demultiplexing_output_fieldnames = [
         "sequencing_run_id",
         "demultiplexing_id",
+        "demultiplexing_num",
+        "samplesheet_path",
+        "fastq_dir_path",
+        "timestamp_demultiplexing_started"
+    ]
+    sequenced_libraries_output_fieldnames = [
+        "sequencing_run_id",
+        "demultiplexing_id",
         "library_id",
         "project_id_samplesheet",
         "project_id_translated",
@@ -326,20 +341,34 @@ def write_collected_illumina_run(collected_run: dict, run_output_path: Path):
         "q30_percent_last_25_bases",
     ]
     for demultiplexing in collected_run['demultiplexings']:
+        demultiplexing['sequencing_run_id'] = sequencing_run_id
         demultiplexing_id = demultiplexing['demultiplexing_id']
-        demultiplexing_output_path = os.path.join(
+        demultiplexing_output_dir = os.path.join(
             run_demultiplexings_output_path,
-            f"{sequencing_run_id}_demultiplexing_{demultiplexing_id}.csv",
+            demultiplexing_id,
         )
-
-        
+        os.makedirs(demultiplexing_output_dir, exist_ok=True)
+        demultiplexing_output_path = os.path.join(
+            demultiplexing_output_dir,
+            f"{demultiplexing_id}_demultiplexing.csv",
+        )
         with open(demultiplexing_output_path, 'w') as f:
             writer = csv.DictWriter(f, fieldnames=demultiplexing_output_fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
+            writer.writeheader()
+            writer.writerow(demultiplexing)
+
+        sequenced_libraries_output_path = os.path.join(
+            demultiplexing_output_dir,
+            f"{demultiplexing_id}_sequenced_libraries.csv"
+        )
+        with open(sequenced_libraries_output_path, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=sequenced_libraries_output_fieldnames, quoting=csv.QUOTE_MINIMAL, extrasaction='ignore')
             writer.writeheader()
             for sequenced_library in demultiplexing['sequenced_libraries']:
                 sequenced_library['sequencing_run_id'] = sequencing_run_id
                 sequenced_library['demultiplexing_id'] = demultiplexing_id
                 writer.writerow(sequenced_library)
+        
             
         
 
