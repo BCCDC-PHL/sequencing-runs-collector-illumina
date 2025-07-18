@@ -487,9 +487,9 @@ def samplesheet_to_sequenced_libraries(parsed_samplesheet, instrument_model):
                         sequenced_library['library_id'] = data_record['sample_name']
                     elif re.match("S\\d+$", data_record['sample_name']) and not re.match("S\\d+$", data_record['sample_id']):
                         sequenced_library['library_id'] = data_record['sample_id']
-                    elif data_record['sample_id'] == '' and not data_record['sample_name'] == '':
+                    elif data_record['sample_id'] == '' and data_record['sample_name'] != '':
                         sequenced_library['library_id'] = data_record['sample_name']
-                    elif data_record['sample_name'] == '' and not data_record['sample_id'] == '':
+                    elif data_record['sample_name'] == '' and data_record['sample_id'] != '':
                         sequenced_library['library_id'] = data_record['sample_id']
                     else:
                         sequenced_library['library_id'] = data_record['sample_name']
