@@ -471,42 +471,56 @@ def samplesheet_to_sequenced_libraries(parsed_samplesheet, instrument_model):
         if 'data' in parsed_samplesheet:
             for data_record in parsed_samplesheet['data']:
                 sequenced_library = {
-                    'id': None,
-                    'samplesheet_project_id': None,
-                    'index1': None,
+                    'library_id': None,
+                    'project_id_samplesheet': None,
+                    'index': None,
                     'index2': None,
                 }
                 # The library ID that we want is sometimes under 'sample_id' and sometimes under 'sample_name'
                 # The instrument will automatically label samples using an ID like 'S1', 'S2', etc in the other field.
-                if re.match("S\\d+$", data_record['sample_id']):
-                    sequenced_library['id'] = data_record['sample_name']
+                #
+                # If one of 'sample_id' or 'sample_name' is blank and the other isn't then we take the non-blank one
+                #
+                # Otherwise we take the 'sample_name'
+                if 'sample_name' in data_record:
+                    if re.match("S\\d+$", data_record['sample_id']) and not re.match("S\\d+$", data_record['sample_name']):
+                        sequenced_library['library_id'] = data_record['sample_name']
+                    elif re.match("S\\d+$", data_record['sample_name']) and not re.match("S\\d+$", data_record['sample_id']):
+                        sequenced_library['library_id'] = data_record['sample_id']
+                    elif data_record['sample_id'] == '' and data_record['sample_name'] != '':
+                        sequenced_library['library_id'] = data_record['sample_name']
+                    elif data_record['sample_name'] == '' and data_record['sample_id'] != '':
+                        sequenced_library['library_id'] = data_record['sample_id']
+                    else:
+                        sequenced_library['library_id'] = data_record['sample_name']
                 else:
-                    sequenced_library['id'] = data_record['sample_id']
-                sequenced_library['samplesheet_project_id'] = data_record.get('sample_project', None)
-                sequenced_library['index1'] = data_record.get('index', None)
+                    sequenced_library['library_id'] = data_record['sample_id']
+                sequenced_library['library_id'] = sequenced_library['library_id'].replace('_', '-')
+                sequenced_library['project_id_samplesheet'] = data_record.get('sample_project', None)
+                sequenced_library['index'] = data_record.get('index', None)
                 sequenced_library['index2'] = data_record.get('index2', None)
                 sequenced_libraries.append(sequenced_library)
-                
+
     elif instrument_model == 'NEXTSEQ':
         sequenced_libraries_by_library_id = {}
         if 'bclconvert_data' in parsed_samplesheet:
             for bclconvert_record in parsed_samplesheet['bclconvert_data']:
                 sequenced_library = {
-                    'id': None,
-                    'samplesheet_project_id': None,
-                    'index1': None,
+                    'library_id': None,
+                    'project_id_samplesheet': None,
+                    'index': None,
                     'index2': None,
                 }
-                sequenced_library['id'] = bclconvert_record['sample_id']
-                sequenced_library['index1'] = bclconvert_record['index']
+                sequenced_library['library_id'] = bclconvert_record['sample_id']
+                sequenced_library['index'] = bclconvert_record['index']
                 sequenced_library['index2'] = bclconvert_record['index2']
-                sequenced_libraries_by_library_id[sequenced_library['id']] = sequenced_library
+                sequenced_libraries_by_library_id[sequenced_library['library_id']] = sequenced_library
         if 'cloud_data' in parsed_samplesheet:
             for cloud_data_record in parsed_samplesheet['cloud_data']:
                 library_id = cloud_data_record.get('sample_id', None)
                 samplesheet_project_id = cloud_data_record.get('project_name', None)
                 if library_id in sequenced_libraries_by_library_id:
-                    sequenced_libraries_by_library_id[library_id]['samplesheet_project_id'] = samplesheet_project_id
+                    sequenced_libraries_by_library_id[library_id]['project_id_samplesheet'] = samplesheet_project_id
 
         for library_id, sequenced_library in sequenced_libraries_by_library_id.items():
             sequenced_libraries.append(sequenced_library)

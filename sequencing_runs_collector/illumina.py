@@ -15,6 +15,7 @@ from typing import Optional
 
 import sequencing_runs_collector.parsers.interop as interop
 import sequencing_runs_collector.parsers.runinfo as runinfo
+import sequencing_runs_collector.parsers.samplesheet as samplesheet_parser
 
 
 MISEQ_RUN_ID_REGEX = "\\d{6}_M\\d{5}_\\d+_\\d{9}-[A-Z0-9]{5}"
@@ -295,83 +296,16 @@ def get_sequenced_libraries_from_samplesheet(samplesheet, instrument_model, demu
                                                                            'index', 'index2', 'fastq_filename_r1', 'fastq_filaname_r2', ...]
     :rtype: list[dict[str, object]]
     """
-    sequenced_libraries = []
-    samples_section_key = None
-    project_key = None
-    fastq_dir = None
-
-    if instrument_model == "NEXTSEQ":
-        samples_section_key = "cloud_data"
-        project_key = "project_name"
-
-    elif instrument_model == "MISEQ":
-        samples_section_key = "data"
-        project_key = "sample_project"
+    sequenced_libraries = samplesheet_parser.samplesheet_to_sequenced_libraries(samplesheet, instrument_model)
 
     fastq_dir = find_fastq_output_dir(demultiplexing_output_dir, instrument_model)
 
     libraries_by_library_id = {}
-    for sample in samplesheet[samples_section_key]:
-        library = {}
-        
-        if (re.match("S\\d+$", sample['sample_id']) or re.match("\\d+$", sample['sample_id'])):
-            if 'sample_name' in sample and not (re.match("S\\d+$", sample['sample_name']) or re.match("\\d+$", sample['sample_name'])):
-                library_id_key = "sample_name"
-            else:
-                library_id_key = "sample_id"
-        else:
-            library_id_key = "sample_id"
-
-        samplesheet_library_id = sample[library_id_key]
-        cleaned_library_id = samplesheet_library_id.replace("_", "-")
-        r1_fastq_glob = os.path.join(fastq_dir, f"{samplesheet_library_id}_S*_L*_R1_001.fastq.gz")
-        if os.path.exists(r1_fastq_glob):
-            library_id = samplesheet_library_id
-        else:
-            library_id = cleaned_library_id
-        library['library_id'] = library_id
-        library['project_id_samplesheet'] = sample.get(project_key, None)
+    for library in sequenced_libraries:
+        library_id = library['library_id']
         # If we don't have a translation, just use the original project ID for the translated project ID.
         library['project_id_translated'] = project_id_translation.get(library['project_id_samplesheet'], library['project_id_samplesheet']) 
         libraries_by_library_id[library_id] = library
-
-    index_section_key = None
-    if instrument_model == "NEXTSEQ":
-        index_section_key = "bclconvert_data"
-    elif instrument_model == "MISEQ":
-        index_section_key = "data"
-
-    if index_section_key is not None:
-        for sample in samplesheet[index_section_key]:
-            if index_section_key == 'bclconvert_data':
-                library_id = sample['sample_id'].replace("_", "-")
-                try:
-                    if 'index' in sample:
-                        libraries_by_library_id[library_id]['index'] = sample['index']
-                    if 'index2' in sample:
-                        libraries_by_library_id[library_id]['index2'] = sample['index2']
-                except KeyError as e:
-                    libraries_by_library_id[library_id] = {
-                        'id': library_id
-                    }
-                    if 'index' in sample:
-                        libraries_by_library_id[library_id]['index'] = sample['index']
-                    if 'index2' in sample:
-                        libraries_by_library_id[library_id]['index2'] = sample['index2']
-                    
-            else:
-                if (re.match("S\\d+$", sample['sample_id']) or re.match("\\d+$", sample['sample_id'])):
-                    if 'sample_name' in sample and not (re.match("S\\d+$", sample['sample_name']) or re.match("\\d+$", sample['sample_name'])):
-                        library_id_key = "sample_name"
-                    else:
-                        library_id_key = "sample_id"
-                else:
-                    library_id_key = "sample_id"
-                library_id = sample[library_id_key].replace("_", "-")
-                if 'index' in sample:                 
-                    libraries_by_library_id[library_id]['index'] = sample['index']
-                if 'index2' in sample:
-                    libraries_by_library_id[library_id]['index2'] = sample['index2']
 
     if fastq_dir is not None and os.path.exists(fastq_dir):
         for library_id in libraries_by_library_id.keys():

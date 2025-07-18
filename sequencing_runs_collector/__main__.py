@@ -69,7 +69,7 @@ def main():
                 if run is not None:
                     try:
                         config = sequencing_runs_collector.config.load_config(args.config)
-                        logging.info(json.dumps({
+                        logging.debug(json.dumps({
                             "event_type": "config_loaded",
                             "config_file": os.path.abspath(args.config)
                         }))
